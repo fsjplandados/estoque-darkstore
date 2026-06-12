@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import base64
 
 CACHE_FILE = "stokeflow_cache.pkl"
 
@@ -10,7 +11,7 @@ CACHE_FILE = "stokeflow_cache.pkl"
 # ==========================================
 st.set_page_config(
     page_title="StokeFlow - Darkstore São João",
-    page_icon="📦",
+    page_icon="estoque.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -29,9 +30,9 @@ def inject_custom_css():
 
             /* Header Customizado Estilo Tailwind */
             .custom-header {
-                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1.5rem 5rem;
+                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 0.75rem 5rem;
                 display: flex; justify-content: space-between; align-items: center;
-                margin-left: -5rem; margin-right: -5rem; margin-top: -3.5rem; margin-bottom: 2rem;
+                margin-left: -5rem; margin-right: -5rem; margin-top: -3.5rem; margin-bottom: 1.5rem;
             }
             .header-left { display: flex; align-items: center; gap: 1rem; }
             .header-logo-box { background-color: #4f46e5; padding: 0.5rem; border-radius: 0.5rem; color: white; display: flex; align-items: center;}
@@ -39,7 +40,7 @@ def inject_custom_css():
             .header-subtitle { font-size: 0.75rem; color: #64748b; margin: 0; }
             .badge-darkstore { background-color: #e0e7ff; color: #4338ca; font-size: 0.65rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 9999px; }
             
-            .header-right { display: flex; align-items: center; gap: 1rem; }
+            .header-right { display: flex; align-items: center; gap: 1.5rem; }
             .sync-badge { display: flex; align-items: center; gap: 0.35rem; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 0.375rem; }
             .sync-dot { width: 6px; height: 6px; background-color: #22c55e; border-radius: 50%; }
 
@@ -82,19 +83,35 @@ def inject_custom_css():
         </style>
     """, unsafe_allow_html=True)
 
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
 def render_header():
-    st.markdown("""
+    try:
+        logo_b64 = get_base64_of_bin_file('logo.png')
+        logo_html = f'<img src="data:image/png;base64,{logo_b64}" style="height: 50px; width: auto; object-fit: contain;">'
+    except Exception:
+        logo_html = ''
+
+    try:
+        estoque_b64 = get_base64_of_bin_file('estoque.png')
+        estoque_html = f'<img src="data:image/png;base64,{estoque_b64}" style="height: 40px; width: auto; object-fit: contain;">'
+    except Exception:
+        estoque_html = '<div class="header-logo-box"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>'
+
+    st.markdown(f"""
         <div class="custom-header">
             <div class="header-left">
-                <div class="header-logo-box">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                </div>
+                {logo_html}
                 <div>
-                    <h1 class="header-title">StokeFlow <span class="badge-darkstore">DARKSTORE</span></h1>
-                    <p class="header-subtitle">Gestão Exclusiva: São João</p>
+                    <h1 class="header-title"> <span class="badge-darkstore">DARKSTORE</span></h1>
+                    <p class="header-subtitle">Controle e Analise de Estoque</p>
                 </div>
             </div>
             <div class="header-right">
+                {estoque_html}
                 <div class="sync-badge"><div class="sync-dot"></div> Sincronizado</div>
             </div>
         </div>
