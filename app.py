@@ -22,15 +22,15 @@ def inject_custom_css():
     st.markdown("""
         <style>
             .stApp { background-color: #f8fafc; }
-            #MainMenu {visibility: hidden;}
-            header {visibility: hidden;}
-            .block-container { padding-top: 1rem; }
+            #MainMenu {display: none;}
+            header {display: none;}
+            .block-container { padding-top: 0rem; padding-bottom: 1rem; max-width: 95%; }
 
             /* Header Customizado Estilo Tailwind */
             .custom-header {
-                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1rem 2rem;
+                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1.5rem 5%;
                 display: flex; justify-content: space-between; align-items: center;
-                margin-left: -2rem; margin-right: -2rem; margin-top: -2rem; margin-bottom: 2rem;
+                margin-left: -5.5%; margin-right: -5.5%; margin-top: 0rem; margin-bottom: 2rem;
             }
             .header-left { display: flex; align-items: center; gap: 1rem; }
             .header-logo-box { background-color: #4f46e5; padding: 0.5rem; border-radius: 0.5rem; color: white; display: flex; align-items: center;}
@@ -64,8 +64,20 @@ def inject_custom_css():
             .bg-indigo { background-color: #eef2ff; color: #4f46e5; }
             .bg-emerald { background-color: #ecfdf5; color: #10b981; }
             
-            /* Gráficos customizados */
+            /* Gráficos customizados e fundos brancos */
             .chart-title { font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;}
+            
+            [data-testid="stExpander"] details {
+                background-color: white;
+                border-radius: 0.5rem;
+                border: 1px solid #e2e8f0;
+            }
+            
+            [data-testid="stVerticalBlockBorderWrapper"] {
+                background-color: white;
+                border-radius: 0.5rem;
+                border: 1px solid #e2e8f0 !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -399,39 +411,41 @@ def main():
     col_chart1, col_chart2 = st.columns([2, 1])
     
     with col_chart1:
-        st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dias de Cobertura de Estoque c/ Trânsito por SKU</p>', unsafe_allow_html=True)
-        df_valid_charts = df_filtered[df_filtered['Dias Cobertura'] < 999]
-        df_top10 = df_valid_charts.sort_values(by="Dias Cobertura", ascending=False).head(10)
-        
-        if not df_top10.empty:
-            df_top10['Label'] = df_top10['Descrição'].apply(lambda x: x[:20] + "..." if len(x) > 20 else x)
-            fig_bar = px.bar(df_top10, x='Label', y='Dias Cobertura', 
-                             color_discrete_sequence=['#6366f1']) # Indigo blue
+        with st.container(border=True):
+            st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dias de Cobertura de Estoque c/ Trânsito por SKU</p>', unsafe_allow_html=True)
+            df_valid_charts = df_filtered[df_filtered['Dias Cobertura'] < 999]
+            df_top10 = df_valid_charts.sort_values(by="Dias Cobertura", ascending=False).head(10)
             
-            fig_bar.update_layout(xaxis_title="", yaxis_title="Dias de Cobertura", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
-        else:
-            st.info("Nenhum dado para exibir.")
+            if not df_top10.empty:
+                df_top10['Label'] = df_top10['Descrição'].apply(lambda x: x[:20] + "..." if len(x) > 20 else x)
+                fig_bar = px.bar(df_top10, x='Label', y='Dias Cobertura', 
+                                 color_discrete_sequence=['#6366f1']) # Indigo blue
+                
+                fig_bar.update_layout(xaxis_title="", yaxis_title="Dias de Cobertura", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.info("Nenhum dado para exibir.")
 
     with col_chart2:
-        st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg> Saúde do Catálogo (Darkstore)</p>', unsafe_allow_html=True)
-        status_counts = df_filtered['Status'].value_counts().reset_index()
-        status_counts.columns = ['Status', 'Quantidade']
-        
-        color_map = {
-            'Ruptura': '#e11d48',
-            'Crítico': '#f59e0b',
-            'Saudável': '#10b981',
-            'Excesso': '#3b82f6'
-        }
-        
-        if not status_counts.empty:
-            fig_pie = px.pie(status_counts, values='Quantidade', names='Status', hole=0.6,
-                             color='Status', color_discrete_map=color_map)
-            fig_pie.update_layout(margin=dict(l=0, r=0, t=10, b=0), showlegend=False, paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
-        else:
-            st.info("Nenhum dado.")
+        with st.container(border=True):
+            st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg> Saúde do Catálogo (Darkstore)</p>', unsafe_allow_html=True)
+            status_counts = df_filtered['Status'].value_counts().reset_index()
+            status_counts.columns = ['Status', 'Quantidade']
+            
+            color_map = {
+                'Ruptura': '#e11d48',
+                'Crítico': '#f59e0b',
+                'Saudável': '#10b981',
+                'Excesso': '#3b82f6'
+            }
+            
+            if not status_counts.empty:
+                fig_pie = px.pie(status_counts, values='Quantidade', names='Status', hole=0.6,
+                                 color='Status', color_discrete_map=color_map)
+                fig_pie.update_layout(margin=dict(l=0, r=0, t=10, b=0), showlegend=False, paper_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.info("Nenhum dado.")
 
     # ------------------------------------------
     # TABELA PRINCIPAL
