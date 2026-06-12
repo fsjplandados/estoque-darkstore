@@ -201,6 +201,7 @@ def process_data(file_curvas, file_darkstore, file_cds):
 
     df_cds = pd.read_excel(file_cds)
     df_cds = clean_column_names(df_cds)
+    df_cds = df_cds.iloc[1:] # Pula a 2ª linha (Total)
     
     col_cod_cd = next((c for c in df_cds.columns if 'codproduto' in c), None)
     col_filial = next((c for c in df_cds.columns if 'descfilial' in c), None)
@@ -219,6 +220,7 @@ def process_data(file_curvas, file_darkstore, file_cds):
 
     df_dark = pd.read_excel(file_darkstore)
     df_dark = clean_column_names(df_dark)
+    df_dark = df_dark.iloc[1:] # Pula a 2ª linha (Total)
     
     col_cod = next((c for c in df_dark.columns if 'codproduto' in c), None)
     col_name = next((c for c in df_dark.columns if 'descproduto' in c or 'descri' in c), None)

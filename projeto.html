@@ -1,0 +1,1888 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StokeFlow - Darkstore São João</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.85;
+            }
+        }
+
+        .animate-pulse-red {
+            animation: pulse-red 2s infinite;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- NOTIFICAÇÃO CUSTOMIZADA -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- HEADER -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md shadow-indigo-100">
+                    <i data-lucide="store" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        StokeFlow <span
+                            class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium border border-indigo-100">DARKSTORE</span>
+                    </h1>
+                    <p class="text-xs text-slate-500">Gestão Exclusiva: <span class="font-semibold text-indigo-600">São
+                            João</span></p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- Indicador de Status de Sincronização em Nuvem -->
+                <div id="sync-indicator"
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="sync-dot"></span>
+                    <span id="sync-text">Conectando...</span>
+                </div>
+
+                <!-- Botão Importador Rápido de Inventário -->
+                <button onclick="openImportModal()"
+                    class="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded-lg transition-all border border-indigo-100">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Colar</span> Inv. Darkstore
+                </button>
+
+                <!-- Botão Importador de CDs -->
+                <button onclick="openImportCDModal()"
+                    class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition-all">
+                    <i data-lucide="warehouse" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Colar</span> Base CDs
+                </button>
+
+                <button onclick="switchTab('ai')"
+                    class="hidden md:flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition-all">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    Assistente de IA
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+
+        <!-- TABS NAVIGATION -->
+        <div class="flex border-b border-slate-200 gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+            <button onclick="switchTab('dashboard')" id="tab-btn-dashboard"
+                class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-white text-slate-950 shadow-sm">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                Painel & Inventário
+            </button>
+            <button onclick="switchTab('ai')" id="tab-btn-ai"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                <i data-lucide="sparkles" class="w-4 h-4 text-purple-600"></i>
+                Plano de Abastecimento IA
+            </button>
+            <button onclick="switchTab('simulacao')" id="tab-btn-simulacao"
+                class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                <i data-lucide="sliders" class="w-4 h-4"></i>
+                Simulador de Demanda
+            </button>
+        </div>
+
+        <!-- TAB 1: DASHBOARD & TABLE -->
+        <div id="tab-content-dashboard" class="space-y-8">
+
+            <!-- CARDS DE MÉTRICAS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- SKU Total -->
+                <div
+                    class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">SKUs Mapeados</span>
+                        <h3 class="text-3xl font-bold text-slate-950" id="metric-total-skus">0</h3>
+                        <p class="text-xs text-slate-500 flex items-center gap-1">
+                            <span class="text-indigo-600 font-semibold" id="metric-cd-associated">0 CDs parceiros
+                                integrados</span>
+                        </p>
+                    </div>
+                    <div class="p-3 bg-slate-100 text-slate-700 rounded-xl">
+                        <i data-lucide="tag" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Rupturas -->
+                <div
+                    class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Itens em Ruptura
+                            Iminente</span>
+                        <div class="flex items-baseline gap-2">
+                            <h3 class="text-3xl font-bold text-rose-600" id="metric-rupturas">0</h3>
+                            <span class="text-xs text-rose-600 font-medium" id="metric-ruptura-percentage">(0%)</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Estoque c/ Trânsito zerado</p>
+                    </div>
+                    <div class="p-3 bg-rose-50 text-rose-600 rounded-xl" id="ruptura-icon-container">
+                        <i data-lucide="alert-octagon" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Cobertura Média de Lojas -->
+                <div
+                    class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cobertura
+                            Média</span>
+                        <h3 class="text-3xl font-bold text-indigo-600" id="metric-avg-coverage">0 dias</h3>
+                        <p class="text-xs text-slate-500 font-medium text-emerald-600">Tempo de segurança da Darkstore
+                        </p>
+                    </div>
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <i data-lucide="calendar" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Cobertura Total de CD -->
+                <div
+                    class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div class="space-y-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Saldo Total nos
+                            CDs</span>
+                        <h3 class="text-3xl font-bold text-emerald-700" id="metric-cd-total">0 un</h3>
+                        <p class="text-xs text-slate-400" id="metric-cd-uniques">Mapeado por Cód. de Produto</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="warehouse" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRAFICOS & QUICK INSIGHTS -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-600"></i> Dias de Cobertura de Estoque
+                        c/ Trânsito por SKU
+                    </h3>
+                    <div class="h-64 relative">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="w-4 h-4 text-indigo-600"></i> Saúde do Catálogo (Darkstore
+                            São João)
+                        </h3>
+                        <div class="h-44 relative flex justify-center">
+                            <canvas id="healthChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs mt-4 pt-4 border-t border-slate-100">
+                        <div>
+                            <span class="block font-bold text-rose-600" id="legend-rupturas">0</span>
+                            <span class="text-slate-400">Ruptura (0d)</span>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-amber-500" id="legend-critico">0</span>
+                            <span class="text-slate-400">Crítico (&lt;15d)</span>
+                        </div>
+                        <div>
+                            <span class="block font-bold text-emerald-600" id="legend-saudavel">0</span>
+                            <span class="text-slate-400">Saudável</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FILTROS E PESQUISA -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                <!-- Título dos Filtros -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-600"></i>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Gerenciamento de
+                            Catálogo & Busca</span>
+                    </div>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-semibold">Unidade:
+                        São João</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                    <!-- Pesquisa -->
+                    <div class="relative w-full sm:col-span-2">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </span>
+                        <input type="text" id="search-input" placeholder="Buscar por Descrição ou Código do Produto..."
+                            class="pl-9 pr-4 py-2 w-full text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                    </div>
+
+                    <!-- Filtro de Status de Estoque -->
+                    <select id="filter-status"
+                        class="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                        <option value="">Todos os Status de Cobertura</option>
+                        <option value="ruptura">🔴 Ruptura (Zerado c/ Trânsito)</option>
+                        <option value="critico">🟡 Crítico (Até 15 Dias)</option>
+                        <option value="saudavel">🟢 Saudável (15-60 Dias)</option>
+                        <option value="excesso">🔵 Excesso (60+ Dias)</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-wrap gap-2 justify-end pt-3 border-t border-slate-100">
+                    <button onclick="clearAllFilters()"
+                        class="flex items-center justify-center gap-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-2 rounded-lg transition-all">
+                        <i data-lucide="filter-x" class="w-3.5 h-3.5"></i>
+                        Limpar Filtros
+                    </button>
+
+                    <!-- BOTÃO DE EXPORTAÇÃO PARA EXCEL COM FORMATAÇÃO -->
+                    <button onclick="exportToExcel()"
+                        class="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-all shadow-sm">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                        Exportar Excel
+                    </button>
+
+                    <button onclick="openImportModal()"
+                        class="flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition-all">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        Colar Inventário
+                    </button>
+                    <button onclick="openImportCDModal()"
+                        class="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-all shadow-sm">
+                        <i data-lucide="warehouse" class="w-4 h-4"></i>
+                        Colar CDs
+                    </button>
+                </div>
+            </div>
+
+            <!-- TABELA DE PRODUTOS -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-4 px-6">Código Prod.</th>
+                                <th class="py-4 px-6">Descrição do Item</th>
+                                <th class="py-4 px-6 text-right">Estoque a Custo</th>
+                                <th class="py-4 px-6 text-right">Custo Unitário</th>
+                                <th class="py-4 px-6 text-right">Estoque Físico Loja (Qtde)</th>
+                                <th class="py-4 px-6 text-right">Giro 30d (Un)</th>
+                                <th class="py-4 px-6 text-right bg-slate-100/50 text-slate-900 font-extrabold">Estoque
+                                    c/ Trânsito</th>
+                                <th class="py-4 px-6 text-right bg-indigo-50/50 text-indigo-950 font-extrabold">Dias
+                                    Est. c/ Trânsito (Cobertura)</th>
+                                <th class="py-4 px-6 text-center">Status</th>
+                                <!-- Coluna de Estoque nos CDs de Fornecimento -->
+                                <th class="py-4 px-6 bg-emerald-50/50 text-emerald-950 font-extrabold">Disponível nos
+                                    CDs Parceiros</th>
+                                <th class="py-4 px-6 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Renderizado dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="table-empty-state"
+                    class="hidden flex flex-col items-center justify-center py-16 text-slate-400">
+                    <i data-lucide="package-search" class="w-16 h-16 text-slate-300 mb-4"></i>
+                    <p class="font-medium text-slate-600">Nenhum produto encontrado na Darkstore São João</p>
+                    <p class="text-xs">Tente ajustar a busca ou colar uma nova base de inventário compatível.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: AI GEMINI ANALYSIS -->
+        <div id="tab-content-ai" class="space-y-6 hidden">
+            <div
+                class="bg-white p-8 rounded-2xl border border-purple-100 shadow-sm bg-gradient-to-br from-white via-white to-purple-50/30">
+                <div
+                    class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-6 h-6 text-purple-600"></i>
+                            Análise e Plano de Reabastecimento Automático (Gemini)
+                        </h2>
+                        <p class="text-sm text-slate-500 mt-1">A IA analisa dinamicamente as rupturas de trânsito da
+                            **Darkstore São João** e as cruza com os saldos físicos dos CDs parceiros para gerar ordens
+                            de transferências táticas.</p>
+                    </div>
+                    <button onclick="runAIAnalysis()" id="btn-run-ai"
+                        class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all shadow-md shadow-purple-200">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i>
+                        <span>Gerar Plano com IA</span>
+                    </button>
+                </div>
+
+                <!-- AI CONTENT OUTPUT -->
+                <div class="mt-6">
+                    <!-- Loading State -->
+                    <div id="ai-loading" class="hidden py-16 flex flex-col items-center justify-center gap-4">
+                        <div class="relative w-16 h-16">
+                            <div class="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+                            <div
+                                class="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin">
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm font-semibold text-slate-700">O Gemini está cruzando os saldos da
+                                Darkstore São João com os CDs...</p>
+                            <p class="text-xs text-slate-400 mt-1" id="ai-loading-step">Mapeando rupturas críticas...
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Empty/Initial State -->
+                    <div id="ai-placeholder" class="py-12 text-center text-slate-500">
+                        <div
+                            class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600">
+                            <i data-lucide="brain-circuit" class="w-8 h-8"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800">Pronto para gerar ordens de remanejamento</h4>
+                        <p class="text-sm max-w-md mx-auto mt-2">Clique no botão acima para que a inteligência
+                            artificial analise quais rupturas de São João podem ser sanadas através das distribuidoras
+                            informadas no mapeamento dos CDs.</p>
+                    </div>
+
+                    <!-- Loaded Result Display -->
+                    <div id="ai-result" class="hidden space-y-6">
+                        <div class="bg-purple-50/50 border border-purple-100 rounded-xl p-5 flex items-start gap-3">
+                            <div class="bg-purple-100 text-purple-800 p-2 rounded-lg">
+                                <i data-lucide="info" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-purple-900 text-sm">Resumo da Inteligência de Abastecimento
+                                </h4>
+                                <p id="ai-executive-summary" class="text-xs text-purple-800 mt-1 leading-relaxed"></p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Tabela Recomendações de Compra -->
+                            <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                                <div class="bg-slate-50 border-b border-slate-200 p-4">
+                                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                        <i data-lucide="truck" class="w-4 h-4 text-indigo-500"></i>
+                                        Ordens de Transferência Recomendadas (CD -> Darkstore)
+                                    </h4>
+                                </div>
+                                <div class="p-4 overflow-x-auto">
+                                    <table class="w-full text-xs text-left">
+                                        <thead>
+                                            <tr
+                                                class="text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-100 pb-2">
+                                                <th class="pb-2">Distribuidor Origem</th>
+                                                <th class="pb-2">Produto Destinatário</th>
+                                                <th class="pb-2 text-right">Qtd. a Enviar</th>
+                                                <th class="pb-2 text-center">Urgência</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ai-table-recommendations" class="divide-y divide-slate-100">
+                                            <!-- Rendered by AI -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Insights e Alertas -->
+                            <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-4">
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <i data-lucide="lightbulb" class="w-4 h-4 text-emerald-500"></i>
+                                    Diretrizes de Saúde de Inventário e Logística
+                                </h4>
+                                <ul id="ai-insights-list" class="space-y-3 text-xs text-slate-600">
+                                    <!-- Rendered by AI -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: SIMULATOR -->
+        <div id="tab-content-simulacao" class="space-y-6 hidden">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900 mb-2">Simulador de Demanda & Picos de Giro</h2>
+                <p class="text-sm text-slate-500 mb-6">Simule picos de vendas para entender o tempo de esgotamento total
+                    dos medicamentos de São João.</p>
+
+                <div
+                    class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-700">Aceleração de Giro Geral (%)</label>
+                        <div class="flex items-center gap-4">
+                            <input type="range" id="simulation-slider" min="-50" max="150" step="10" value="0"
+                                class="w-full accent-indigo-600">
+                            <span class="font-bold text-indigo-600 text-lg min-w-[50px] text-right"
+                                id="simulation-percentage-label">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span class="text-xs text-slate-400 block font-medium">Comportamento Simulado:</span>
+                        <p class="text-sm text-slate-700" id="simulation-desc">Os produtos estão operando com a taxa de
+                            giro de 30 dias cadastrada.</p>
+                    </div>
+
+                    <div class="flex gap-4 md:justify-end">
+                        <button onclick="resetSimulation()"
+                            class="px-4 py-2 text-sm font-semibold border border-slate-200 hover:bg-slate-100 rounded-lg transition-all">
+                            Resetar Simulação
+                        </button>
+                        <button onclick="applySimulationPermanently()"
+                            class="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-sm">
+                            Gravar Este Novo Giro
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-slate-200 rounded-xl p-5">
+                        <h4 class="font-bold text-slate-800 text-sm mb-4 text-rose-600">Produtos que Entrarão em Ruptura
+                            Imediata</h4>
+                        <div class="space-y-3" id="simulation-list-rupturas">
+                            <!-- Filled in dynamically -->
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-5">
+                        <h4 class="font-bold text-slate-800 text-sm mb-4 text-amber-600">Itens em Alerta de Segurança
+                            (&lt; 15 dias)</h4>
+                        <div class="space-y-3" id="simulation-list-critical">
+                            <!-- Filled in dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: IMPORT DATA INVENTÁRIO (COLAR BASE) -->
+    <div id="import-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div
+                class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-slate-200">
+                <div class="bg-white p-6">
+                    <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="file-text" class="text-indigo-600"></i>
+                            Colar Base de Inventário (Darkstore São João)
+                        </h3>
+                        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 transition-all">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="mt-4 space-y-4">
+                        <p class="text-xs text-slate-500">
+                            Copie todas as colunas de sua planilha do Excel de produtos de São João e cole abaixo. O
+                            sistema identificará automaticamente os campos estruturados de forma inteligente:
+                        </p>
+
+                        <textarea id="import-textarea" rows="10"
+                            placeholder="Cod. Produto	Descrição	Estoque a Custo	Custo Unitário	Estoque Qtde	Dias Estoque	Giro 030 dias	Liquido 030 dias	Estoque c/ Transito	Dias Est. c/ Transito"
+                            class="w-full text-xs font-mono border border-slate-200 rounded-lg p-3 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"></textarea>
+
+                        <div class="flex justify-between items-center pt-2">
+                            <button onclick="loadSampleData()"
+                                class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">
+                                Carregar Dados Originais de São João
+                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="closeImportModal()"
+                                    class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all">
+                                    Cancelar
+                                </button>
+                                <button onclick="processImportedText()"
+                                    class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-md">
+                                    Atualizar Inventário
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: IMPORT DATA CDs -->
+    <div id="import-cd-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div
+                class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-slate-200">
+                <div class="bg-white p-6">
+                    <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="warehouse" class="text-emerald-600"></i>
+                            Colar Base de Centro de Distribuição (CDs de Fornecimento)
+                        </h3>
+                        <button onclick="closeImportCDModal()"
+                            class="text-slate-400 hover:text-slate-600 transition-all">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="mt-4 space-y-4">
+                        <p class="text-xs text-slate-500">
+                            Cole abaixo a planilha de Centro de Distribuição. O sistema correlacionará automaticamente
+                            com os itens da Darkstore pelo <strong class="text-slate-700">Cod. Produto</strong>:
+                        </p>
+
+                        <textarea id="import-cd-textarea" rows="10"
+                            placeholder="Cod. Produto	Descrição	Estoque a Custo	Custo Unitário	Estoque Qtde	Dias Estoque	Giro 030 dias	Liquido 030 dias	Estoque c/ Transito	Dias Est. c/ Transito"
+                            class="w-full text-xs font-mono border border-slate-200 rounded-lg p-3 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"></textarea>
+
+                        <div class="flex justify-between items-center pt-2">
+                            <button onclick="loadSampleCDData()"
+                                class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold">
+                                Carregar Exemplo de Distribuidoras Parceiras
+                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="closeImportCDModal()"
+                                    class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all">
+                                    Cancelar
+                                </button>
+                                <button onclick="processCDImportedText()"
+                                    class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-all shadow-md">
+                                    Atualizar Estoques CD
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT PRODUCT -->
+    <div id="product-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div
+                class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-200">
+                <div class="bg-white p-6">
+                    <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                        <h3 class="text-lg font-bold text-slate-900">Editar Dados do Produto</h3>
+                        <button onclick="closeProductModal()"
+                            class="text-slate-400 hover:text-slate-600 transition-all">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <form id="product-form" class="space-y-4 mt-4 text-xs">
+                        <input type="hidden" id="form-product-id">
+
+                        <div>
+                            <label class="block font-semibold text-slate-500 mb-1">Código do Item</label>
+                            <input type="text" id="form-cod-prod" readonly
+                                class="w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-500 font-mono">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-500 mb-1">Descrição</label>
+                            <input type="text" id="form-name" readonly
+                                class="w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-500 font-medium">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-semibold text-slate-500 mb-1">Custo Unitário (R$)</label>
+                                <input type="number" id="form-cost-unit" step="0.01"
+                                    class="w-full border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-500 mb-1">Estoque a Custo (R$)</label>
+                                <input type="number" id="form-cost-total" step="0.01"
+                                    class="w-full border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-semibold text-slate-500 mb-1">Estoque Físico Loja
+                                    (Qtde)</label>
+                                <input type="number" id="form-stock-qtde"
+                                    class="w-full border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-500 mb-1">Giro 30 Dias (Unidades)</label>
+                                <input type="number" id="form-giro"
+                                    class="w-full border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-semibold text-slate-500 mb-1">Estoque c/ Trânsito
+                                    (Unidades)</label>
+                                <input type="number" id="form-transit-stock"
+                                    class="w-full border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 font-semibold">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-500 mb-1">Dias de Cobertura c/
+                                    Trânsito</label>
+                                <input type="number" id="form-days-transit"
+                                    class="w-full border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                            <button type="button" onclick="closeProductModal()"
+                                class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg font-semibold hover:bg-slate-50 transition-all">
+                                Cancelar
+                            </button>
+                            <button type="submit"
+                                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-all">
+                                Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+            <p>&copy; 2026 StokeFlow Inc. Darkstore São João.</p>
+            <div class="flex gap-4">
+                <a href="#" class="hover:text-slate-800 transition-all">Termos de Uso</a>
+                <a href="#" class="hover:text-slate-800 transition-all">Privacidade</a>
+                <a href="#" class="hover:text-slate-800 transition-all">Suporte Técnico</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- INTEGRANDO FIREBASE LOGIC E SCRIPT DE ESTADO -->
+    <script type="module">
+        // Importações Oficiais do Firebase SDK v11.6.1 compatíveis com o ambiente de testes
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Chave de API de IA do Gemini (Vazia, pois o ambiente injeta automaticamente)
+        const apiKey = "";
+
+        // Setup do Estado e Constantes Globais
+        let products = [
+            { cod_produto: "88", name: "Aerolin Sulfato de Salbutamol 100mcg Spray 200 Doses", custo: 2413.39, custo_unitario: 14.99, estoque_qtde: 161, dias_estoque: 124, giro_30d: 39, liquido_30d: 817.66, estoque_transito: 161, dias_transito: 124, curva_a: "88" },
+            { cod_produto: "458", name: "Analgésico Buscopan Composto 20 Comprimidos Revestidos Hypera Pharma", custo: 1255.80, custo_unitario: 19.32, estoque_qtde: 65, dias_estoque: 163, giro_30d: 12, liquido_30d: 340.78, estoque_transito: 65, dias_transito: 163, curva_a: "458" },
+            { cod_produto: "1575", name: "Xarope Melagrião 150 mL Catarinense", custo: 91.62, custo_unitario: 10.18, estoque_qtde: 9, dias_estoque: 14, giro_30d: 19, liquido_30d: 464.76, estoque_transito: 9, dias_transito: 14, curva_a: "1575" },
+            { cod_produto: "2059", name: "Chá Para Gripe Vick Pyrena Sabor Mel e Limão 5g", custo: 117.42, custo_unitario: 3.09, estoque_qtde: 38, dias_estoque: 35, giro_30d: 33, liquido_30d: 186.49, estoque_transito: 38, dias_transito: 35, curva_a: "2059" },
+            { cod_produto: "2523", name: "Sal de Fruta Eno Tradicional 2 Envelopes Efervescentes 5g GSK", custo: 101.84, custo_unitario: 2.68, estoque_qtde: 38, dias_estoque: 57, giro_30d: 20, liquido_30d: 86.53, estoque_transito: 38, dias_transito: 57, curva_a: "2523" },
+            { cod_produto: "4491", name: "Chiclete Trident Menta sem Açúcar 8g", custo: 72.80, custo_unitario: 1.30, estoque_qtde: 56, dias_estoque: 240, giro_30d: 7, liquido_30d: 22.79, estoque_transito: 56, dias_transito: 240, curva_a: "4491" },
+            { cod_produto: "5309", name: "Xarope Expec Tripla Ação 120ml", custo: 789.66, custo_unitario: 19.26, estoque_qtde: 41, dias_estoque: 32, giro_30d: 38, liquido_30d: 1046.17, estoque_transito: 41, dias_transito: 32, curva_a: "5309" }
+        ];
+
+        let cdStockList = [
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "88", name: "Aerolin Sulfato de Salbutamol 100mcg Spray 200 Doses", custo: 27311.78, custo_unitario: 14.99, estoque_qtde: 1822, dias_estoque: 124, giro_30d: 0, estoque_transito: 1822, dias_transito: 124 },
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "458", name: "Analgésico Buscopan Composto 20 Comprimidos Revestidos Hypera Pharma", custo: 510820.80, custo_unitario: 19.32, estoque_qtde: 26440, dias_estoque: 163, giro_30d: 0, estoque_transito: 26440, dias_transito: 163 },
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "1575", name: "Xarope Melagrião 150 mL Catarinense", custo: 425208.42, custo_unitario: 10.18, estoque_qtde: 41769, dias_estoque: 14, giro_30d: 0, estoque_transito: 41769, dias_transito: 14 },
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "2059", name: "Chá Para Gripe Vick Pyrena Sabor Mel e Limão 5g", custo: 324771.36, custo_unitario: 3.09, estoque_qtde: 105104, dias_estoque: 35, giro_30d: 0, estoque_transito: 105104, dias_transito: 35 },
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "2523", name: "Sal de Fruta Eno Tradicional 2 Envelopes Efervescentes 5g GSK", custo: 321.60, custo_unitario: 2.68, estoque_qtde: 120, dias_estoque: 57, giro_30d: 0, estoque_transito: 120, dias_transito: 57 },
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "4491", name: "Chiclete Trident Menta sem Açúcar 8g", custo: 6177.60, custo_unitario: 1.30, estoque_qtde: 4752, dias_estoque: 240, giro_30d: 0, estoque_transito: 4752, dias_transito: 240 },
+            { filial_cd: "Distribuidora Gravataí", cod_produto: "5309", name: "Xarope Expec Tripla Ação 120ml", custo: 1101479.40, custo_unitario: 19.26, estoque_qtde: 57190, dias_estoque: 32, giro_30d: 0, estoque_transito: 57190, dias_transito: 32 }
+        ];
+
+        let categoryChartInstance = null;
+        let healthChartInstance = null;
+        let currentSimulationPercentage = 0;
+
+        // Variáveis globais do Firebase
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Inicialização do Firebase e Sincronização do Usuário
+        const setupFirebase = async () => {
+            const indicator = document.getElementById('sync-indicator');
+            const dot = document.getElementById('sync-dot');
+            const txt = document.getElementById('sync-text');
+
+            if (typeof __firebase_config === 'undefined') {
+                txt.innerText = "Modo Off-line (Local)";
+                dot.className = "w-2 h-2 rounded-full bg-slate-400";
+                updateDashboardData();
+                renderSimulationData();
+                return;
+            }
+
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Autenticação conforme REGRA 3
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        txt.innerText = "Sincronizado";
+                        dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                        await loadSavedDataFromCloud();
+                    } else {
+                        currentUser = null;
+                        txt.innerText = "Desconectado";
+                        dot.className = "w-2 h-2 rounded-full bg-rose-500 animate-pulse";
+                    }
+                });
+
+            } catch (err) {
+                console.error("Firebase Init Error:", err);
+                txt.innerText = "Erro de Conexão";
+                dot.className = "w-2 h-2 rounded-full bg-rose-500";
+                updateDashboardData();
+                renderSimulationData();
+            }
+        };
+
+        // Sincroniza e salva o estado do usuário na Nuvem (Seguindo REGRA 1)
+        const saveDataToCloud = async () => {
+            if (!currentUser || !db) return;
+            try {
+                const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'estoque_data', 'current_state');
+                await setDoc(userDocRef, {
+                    products,
+                    cdStockList,
+                    updatedAt: new Date().toISOString()
+                });
+                showToast("Dados salvos automaticamente na nuvem!", "success");
+            } catch (err) {
+                console.error("Erro ao salvar:", err);
+                showToast("Falha ao salvar sincronização.", "error");
+            }
+        };
+
+        // Recupera dados salvos da nuvem (Seguindo REGRA 1)
+        const loadSavedDataFromCloud = async () => {
+            if (!currentUser || !db) return;
+            try {
+                const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'estoque_data', 'current_state');
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.products) products = data.products;
+                    if (data.cdStockList) cdStockList = data.cdStockList;
+                    showToast("Dados recuperados da sua última sessão!", "success");
+                }
+            } catch (err) {
+                console.error("Erro ao carregar:", err);
+            } finally {
+                updateDashboardData();
+                renderSimulationData();
+            }
+        };
+
+        // Função de alternância de abas da interface
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-slate-950', 'shadow-sm');
+                btn.classList.add('text-slate-600', 'hover:text-slate-900');
+            });
+
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-600', 'hover:text-slate-900');
+                activeBtn.classList.add('bg-white', 'text-slate-950', 'shadow-sm');
+            }
+
+            document.getElementById('tab-content-dashboard').classList.add('hidden');
+            document.getElementById('tab-content-ai').classList.add('hidden');
+            document.getElementById('tab-content-simulacao').classList.add('hidden');
+
+            document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+
+            if (tabId === 'dashboard') {
+                setTimeout(updateCharts, 50);
+            }
+        }
+
+        // Modal helpers
+        function openImportModal() {
+            document.getElementById('import-modal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        function openImportCDModal() {
+            document.getElementById('import-cd-modal').classList.remove('hidden');
+        }
+
+        function closeImportCDModal() {
+            document.getElementById('import-cd-modal').classList.add('hidden');
+        }
+
+        // Geradores de bases padrões em lote
+        function loadSampleData() {
+            const sample = `Cod. Produto	Descrição	Estoque a Custo	Custo Unitário	Estoque Qtde	Dias Estoque	Giro 030 dias	Liquido 030 dias	Estoque c/ Transito	Dias Est. c/ Transito	SKUs	SKUs c/ saldo	DFU c/saldo	Linhas	Curva A
+88	Aerolin Sulfato de Salbutamol 100mcg Spray 200 Doses	2.413,39	14,99	161	124	39	817,66	161	124	1	1	1	1	88
+458	Analgésico Buscopan Composto 20 Comprimidos Revestidos Hypera Pharma	1.255,80	19,32	65	163	12	340,78	65	163	1	1	1	1	458
+1575	Xarope Melagrião 150 mL Catarinense	91,62	10,18	9	14	19	464,76	9	14	1	1	1	1	1575
+2059	Chá Para Gripe Vick Pyrena Sabor Mel e Limão 5g	117,42	3,09	38	35	33	186,49	38	35	1	1	1	1	2059
+2523	Sal de Fruta Eno Tradicional 2 Envelopes Efervescentes 5g GSK	101,84	2,68	38	57	20	86,53	38	57	1	1	1	1	2523
+4491	Chiclete Trident Menta sem Açúcar 8g	72,80	1,30	56	240	7	22,79	56	240	1	1	1	1	4491
+5309	Xarope Expec Tripla Ação 120ml	789,66	19,26	41	32	38	1.046,17	41	32	1	1	1	1	5309`;
+            document.getElementById('import-textarea').value = sample;
+        }
+
+        function loadSampleCDData() {
+            const sample = `Cod. Produto	Descrição	Estoque a Custo	Custo Unitário	Estoque Qtde	Dias Estoque	Giro 030 dias	Liquido 030 dias	Estoque c/ Transito	Dias Est. c/ Transito	SKUs	SKUs c/ saldo	DFU c/saldo	Linhas	Curva A
+88	Aerolin Sulfato de Salbutamol 100mcg Spray 200 Doses	27.311,78	14,99	1822	124	0	0,00	1822	124	1	1	1	1	88
+458	Analgésico Buscopan Composto 20 Comprimidos Revestidos Hypera Pharma	510.820,80	19,32	26440	163	0	0,00	26440	163	1	1	1	1	458
+1575	Xarope Melagrião 150 mL Catarinense	425.208,42	10,18	41769	14	0	0,00	41769	14	1	1	1	1	1575
+2059	Chá Para Gripe Vick Pyrena Sabor Mel e Limão 5g	324.771,36	3,09	105104	35	0	0,00	105104	35	1	1	1	1	2059
+2523	Sal de Fruta Eno Tradicional 2 Envelopes Efervescentes 5g GSK	321,60	2,68	120	57	0	0,00	120	57	1	1	1	1	2523
+4491	Chiclete Trident Menta sem Açúcar 8g	6.177,60	1,30	4752	240	0	0,00	4752	240	1	1	1	1	4491
+5309	Xarope Expec Tripla Ação 120ml	1.101.479,40	19,26	57190	32	0	0,00	57190	32	1	1	1	1	5309`;
+            document.getElementById('import-cd-textarea').value = sample;
+        }
+
+        // Função auxiliar avançada de Mapeamento de Colunas sem Colisões (Resolve o bug do Descrição)
+        function findHeaderIndex(headers, keys, excludeKeys = []) {
+            for (let key of keys) {
+                let idx = headers.findIndex(h => h === key);
+                if (idx !== -1) return idx;
+            }
+
+            const clean = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const cleanKeys = keys.map(clean);
+            const cleanHeaders = headers.map(clean);
+            for (let cKey of cleanKeys) {
+                let idx = cleanHeaders.findIndex(h => h === cKey);
+                if (idx !== -1) return idx;
+            }
+
+            for (let key of keys) {
+                let idx = headers.findIndex(h => {
+                    if (!h.includes(key)) return false;
+                    for (let ex of excludeKeys) {
+                        if (h.includes(ex)) return false;
+                    }
+                    return true;
+                });
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+
+        // Processamento de dados de Lojas combinando com dados dos CDs parceiros
+        function processProductData(product) {
+            const custo = Math.max(0, parseFloat(product.custo) || 0);
+            const custo_unitario = Math.max(0, parseFloat(product.custo_unitario) || 0);
+            const estoque_qtde = Math.max(0, parseInt(product.estoque_qtde) || 0);
+            const giro_30d = Math.max(0, parseFloat(product.giro_30d) || 0);
+            const estoque_transito = Math.max(0, parseInt(product.estoque_transito) || 0);
+
+            const cdsAssociados = cdStockList.filter(cd => cd.cod_produto.toString() === product.cod_produto.toString());
+
+            let days = product.dias_transito;
+            if (giro_30d > 0 && (days === undefined || isNaN(days))) {
+                const giroDiario = giro_30d / 30;
+                days = Math.round(estoque_transito / giroDiario);
+            } else if (days === undefined || isNaN(days)) {
+                days = estoque_transito > 0 ? 999 : 0;
+            }
+
+            // Critério de Ruptura
+            let status = "Saudável";
+            let statusColor = "bg-emerald-50 text-emerald-700 border-emerald-100";
+
+            if (estoque_transito <= 0) {
+                status = "Ruptura";
+                statusColor = "bg-rose-50 text-rose-700 border-rose-100 animate-pulse";
+            } else if (days < 15) {
+                status = "Crítico";
+                statusColor = "bg-amber-50 text-amber-700 border-amber-100";
+            } else if (days > 60) {
+                status = "Excesso";
+                statusColor = "bg-blue-50 text-blue-700 border-blue-100";
+            }
+
+            return {
+                ...product,
+                custo,
+                custo_unitario,
+                estoque_qtde,
+                giro_30d,
+                estoque_transito,
+                days,
+                status,
+                statusColor,
+                cdsStock: cdsAssociados
+            };
+        }
+
+        // Atualiza os painéis principais
+        function updateDashboardData() {
+            const processed = products.map(processProductData);
+
+            const totalSKUs = processed.length;
+            const rupturasList = processed.filter(p => p.estoque_transito <= 0);
+            const totalRupturas = rupturasList.length;
+            const pctRuptura = totalSKUs > 0 ? ((totalRupturas / totalSKUs) * 100).toFixed(0) : 0;
+
+            const validCoverageItems = processed.filter(p => p.estoque_transito > 0);
+            const avgCoverage = validCoverageItems.length > 0
+                ? (validCoverageItems.reduce((acc, p) => acc + p.days, 0) / validCoverageItems.length).toFixed(0)
+                : 0;
+
+            const totalCDStockSum = cdStockList.reduce((acc, c) => acc + c.estoque_qtde, 0);
+            const uniqueCDNames = [...new Set(cdStockList.map(c => c.filial_cd))].length;
+
+            document.getElementById('metric-total-skus').innerText = totalSKUs;
+            document.getElementById('metric-cd-associated').innerText = `${uniqueCDNames} CDs mapeados para abastecimento`;
+            document.getElementById('metric-rupturas').innerText = totalRupturas;
+            document.getElementById('metric-ruptura-percentage').innerText = `(${pctRuptura}%)`;
+            document.getElementById('metric-avg-coverage').innerText = `${avgCoverage} dias`;
+            document.getElementById('metric-cd-total').innerText = `${totalCDStockSum.toLocaleString('pt-BR')} un`;
+
+            const cardRupturas = document.getElementById('ruptura-icon-container');
+            if (totalRupturas > 0) {
+                cardRupturas.className = "p-3 bg-rose-100 text-rose-600 rounded-xl animate-pulse-red border border-rose-300";
+            } else {
+                cardRupturas.className = "p-3 bg-slate-100 text-slate-400 rounded-xl";
+            }
+
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('filter-status').value;
+
+            const filtered = processed.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(searchTerm) || p.cod_produto.toString().includes(searchTerm);
+
+                let matchesStatus = true;
+                if (statusFilter === 'ruptura') matchesStatus = p.estoque_transito <= 0;
+                else if (statusFilter === 'critico') matchesStatus = p.estoque_transito > 0 && p.days < 15;
+                else if (statusFilter === 'saudavel') matchesStatus = p.days >= 15 && p.days <= 60;
+                else if (statusFilter === 'excesso') matchesStatus = p.days > 60;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            window.lastFilteredProducts = filtered;
+
+            renderTable(filtered);
+            updateCharts(filtered);
+        }
+
+        function renderTable(list) {
+            const tbody = document.getElementById('product-table-body');
+            const emptyState = document.getElementById('table-empty-state');
+            tbody.innerHTML = "";
+
+            if (list.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            list.forEach((p, idx) => {
+                const tr = document.createElement('tr');
+
+                if (p.estoque_transito <= 0) {
+                    tr.className = "bg-rose-50/40 hover:bg-rose-50/80 transition-all border-l-4 border-l-rose-500";
+                } else {
+                    tr.className = "hover:bg-slate-50/80 transition-all";
+                }
+
+                let cdsHtml = "";
+                if (p.cdsStock && p.cdsStock.length > 0) {
+                    cdsHtml = `<div class="flex flex-col gap-1.5 py-1">`;
+                    p.cdsStock.forEach(cd => {
+                        const isZero = cd.estoque_qtde <= 0;
+                        const textClass = isZero ? 'text-slate-400 line-through' : 'text-emerald-700 font-bold';
+                        const badgeBg = isZero ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-800 border-emerald-100';
+
+                        cdsHtml += `
+              <div class="flex items-center justify-between text-[11px] px-2 py-0.5 rounded border ${badgeBg}">
+                <span class="truncate pr-1">${cd.filial_cd}</span>
+                <span class="${textClass}">${cd.estoque_qtde.toLocaleString('pt-BR')} un</span>
+              </div>
+            `;
+                    });
+                    cdsHtml += `</div>`;
+                } else {
+                    cdsHtml = `<span class="text-xs text-slate-400 italic">Nenhum estoque associado</span>`;
+                }
+
+                tr.innerHTML = `
+          <td class="py-4 px-6 font-mono text-xs text-indigo-600 font-bold">${p.cod_produto}</td>
+          <td class="py-4 px-6 max-w-xs" title="${p.name}">
+            <div class="font-medium text-slate-800 break-words">${p.name}</div>
+          </td>
+          <td class="py-4 px-6 text-right font-mono text-slate-700">${formatCurrency(p.custo)}</td>
+          <td class="py-4 px-6 text-right font-mono text-slate-700">${formatCurrency(p.custo_unitario)}</td>
+          <td class="py-4 px-6 text-right font-medium text-slate-700">${p.estoque_qtde.toLocaleString('pt-BR')} un</td>
+          <td class="py-4 px-6 text-right font-medium text-slate-700">${p.giro_30d.toFixed(0)} un</td>
+          <td class="py-4 px-6 text-right font-bold text-slate-950 bg-slate-50/60">${p.estoque_transito.toLocaleString('pt-BR')} un</td>
+          <td class="py-4 px-6 text-right font-extrabold text-indigo-950 bg-indigo-50/40">
+            ${p.days} dias
+          </td>
+          <td class="py-4 px-6 text-center">
+            <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${p.statusColor}">
+              <span class="w-1.5 h-1.5 mr-1.5 rounded-full ${p.estoque_transito <= 0 ? 'bg-rose-500 animate-ping' : p.days < 15 ? 'bg-amber-500' : p.days > 60 ? 'bg-blue-500' : 'bg-emerald-500'}"></span>
+              ${p.status}
+            </span>
+          </td>
+          <td class="py-2 px-6 bg-emerald-50/10 max-w-xs">
+            ${cdsHtml}
+          </td>
+          <td class="py-4 px-6 text-center">
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="editProduct('${idx}')" class="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Editar Produto">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+              <button onclick="deleteProductAtIndex(${idx})" class="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Excluir Produto">
+                <i data-lucide="trash" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </td>
+        `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Processamento Inteligente do Mapeamento do Inventário colado
+        function processImportedText() {
+            const text = document.getElementById('import-textarea').value.trim();
+            if (!text) {
+                showToast("Cole os dados de inventário para prosseguir.", "error");
+                return;
+            }
+
+            const lines = text.split('\n');
+            if (lines.length < 2) {
+                showToast("Seu arquivo de inventário precisa conter cabeçalho e dados.", "error");
+                return;
+            }
+
+            let separator = '\t';
+            if (lines[0].includes(';')) separator = ';';
+            else if (lines[0].includes(',') && !lines[0].includes('\t')) separator = ',';
+
+            const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
+
+            // Mapeamento à prova de colisões
+            const map = {
+                cod_produto: findHeaderIndex(headers, ['cod. produto', 'cod_produto', 'cód. produto', 'código', 'codigo', 'cod']),
+                name: findHeaderIndex(headers, ['descrição', 'descricao', 'desc', 'item'], ['filial', 'cd']),
+                custo: findHeaderIndex(headers, ['estoque a custo', 'custo', 'custo total']),
+                custo_unitario: findHeaderIndex(headers, ['custo unitário', 'custo unitario', 'custo unit', 'vl unit']),
+                estoque_qtde: findHeaderIndex(headers, ['estoque qtde', 'quantidade', 'qtd']),
+                giro_30d: findHeaderIndex(headers, ['giro 030 dias', 'giro 30 dias', 'giro 30', 'giro 030', 'giro']),
+                estoque_transito: findHeaderIndex(headers, ['estoque c/ transito', 'estoque c/ trânsito', 'transito', 'trânsito']),
+                dias_transito: findHeaderIndex(headers, ['dias est. c/ transito', 'dias est. c/ trânsito', 'dias_transito', 'dias est'])
+            };
+
+            if (map.name === -1 || map.cod_produto === -1) {
+                showToast("Colunas obrigatórias 'Cod. Produto' e 'Descrição' não mapeadas com sucesso. Verifique o cabeçalho.", "error");
+                return;
+            }
+
+            const parsedProducts = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].split(separator);
+                if (row.length < headers.length) continue;
+
+                const p_custo = map.custo !== -1 ? parseBrazilianNumber(row[map.custo]) : 0;
+                const p_custo_unit = map.custo_unitario !== -1 ? parseBrazilianNumber(row[map.custo_unitario]) : 0;
+                const p_estoque_qtde = map.estoque_qtde !== -1 ? parseInt(parseBrazilianNumber(row[map.estoque_qtde])) : 0;
+                const p_giro = map.giro_30d !== -1 ? parseBrazilianNumber(row[map.giro_30d]) : 0;
+                const p_transit = map.estoque_transito !== -1 ? parseInt(parseBrazilianNumber(row[map.estoque_transito])) : p_estoque_qtde;
+                const p_days_trans = map.dias_transito !== -1 ? parseInt(parseBrazilianNumber(row[map.dias_transito])) : undefined;
+
+                const item = {
+                    cod_produto: row[map.cod_produto]?.trim(),
+                    name: row[map.name]?.trim(),
+                    custo: p_custo,
+                    custo_unitario: p_custo_unit,
+                    estoque_qtde: p_estoque_qtde,
+                    giro_30d: p_giro,
+                    estoque_transito: p_transit,
+                    dias_transito: p_days_trans
+                };
+
+                parsedProducts.push(item);
+            }
+
+            if (parsedProducts.length > 0) {
+                products = parsedProducts;
+                updateDashboardData();
+                renderSimulationData();
+                closeImportModal();
+                saveDataToCloud(); // Salva em Nuvem
+                showToast(`Darkstore São João atualizada com ${parsedProducts.length} itens.`, "success");
+            } else {
+                showToast("Nenhum item válido identificado.", "error");
+            }
+        }
+
+        // Processamento da Colagem da base de CDs
+        function processCDImportedText() {
+            const text = document.getElementById('import-cd-textarea').value.trim();
+            if (!text) {
+                showToast("Cole os dados para continuar.", "error");
+                return;
+            }
+
+            const lines = text.split('\n');
+            if (lines.length < 2) {
+                showToast("Arquivo de CD inválido.", "error");
+                return;
+            }
+
+            let separator = '\t';
+            if (lines[0].includes(';')) separator = ';';
+            else if (lines[0].includes(',') && !lines[0].includes('\t')) separator = ',';
+
+            const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
+
+            const map = {
+                filial_cd: findHeaderIndex(headers, ['desc_filial', 'filial_cd', 'filial', 'cd', 'distribuidora']),
+                cod_produto: findHeaderIndex(headers, ['cod. produto', 'cod_produto', 'cód. produto', 'produto']),
+                estoque_cd: findHeaderIndex(headers, ['estoque qtde', 'quantidade', 'qtd', 'estoque_cd']),
+                name: findHeaderIndex(headers, ['descrição', 'descricao', 'desc'], ['filial', 'cd'])
+            };
+
+            if (map.cod_produto === -1 || map.estoque_cd === -1) {
+                showToast("Colunas obrigatórias nos CDs não foram identificadas.", "error");
+                return;
+            }
+
+            const parsedCDs = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].split(separator);
+                if (row.length < headers.length) continue;
+
+                const item = {
+                    filial_cd: map.filial_cd !== -1 ? (row[map.filial_cd]?.trim() || "Distribuidora Gravataí") : "Distribuidora Gravataí",
+                    cod_produto: row[map.cod_produto]?.trim(),
+                    estoque_qtde: parseInt(parseBrazilianNumber(row[map.estoque_cd])),
+                    name: map.name !== -1 ? row[map.name]?.trim() : ""
+                };
+
+                parsedCDs.push(item);
+            }
+
+            if (parsedCDs.length > 0) {
+                cdStockList = parsedCDs;
+                updateDashboardData();
+                closeImportCDModal();
+                saveDataToCloud(); // Salva em Nuvem
+                showToast(`Estoque de CDs atualizado com sucesso!`, "success");
+            } else {
+                showToast("Erro na leitura de CDs.", "error");
+            }
+        }
+
+        // Editar Produto Individualmente
+        function editProduct(idx) {
+            const item = products[idx];
+            if (!item) return;
+
+            document.getElementById('form-product-id').value = idx;
+            document.getElementById('form-cod-prod').value = item.cod_produto;
+            document.getElementById('form-name').value = item.name;
+            document.getElementById('form-cost-unit').value = item.custo_unitario;
+            document.getElementById('form-cost-total').value = item.custo;
+            document.getElementById('form-stock-qtde').value = item.estoque_qtde;
+            document.getElementById('form-giro').value = item.giro_30d;
+            document.getElementById('form-transit-stock').value = item.estoque_transito;
+            document.getElementById('form-days-transit').value = item.dias_transito || "";
+
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const idx = document.getElementById('form-product-id').value;
+            if (idx === "") return;
+
+            products[idx].custo_unitario = parseFloat(document.getElementById('form-cost-unit').value) || 0;
+            products[idx].custo = parseFloat(document.getElementById('form-cost-total').value) || 0;
+            products[idx].estoque_qtde = parseInt(document.getElementById('form-stock-qtde').value) || 0;
+            products[idx].giro_30d = parseFloat(document.getElementById('form-giro').value) || 0;
+            products[idx].estoque_transito = parseInt(document.getElementById('form-transit-stock').value) || 0;
+
+            const parsedDays = parseInt(document.getElementById('form-days-transit').value);
+            products[idx].dias_transito = isNaN(parsedDays) ? undefined : parsedDays;
+
+            closeProductModal();
+            updateDashboardData();
+            renderSimulationData();
+            saveDataToCloud(); // Sincroniza
+            showToast("Giro e Cobertura editados com sucesso!", "success");
+        }
+
+        function deleteProductAtIndex(idx) {
+            if (confirm("Remover este produto permanentemente do catálogo de São João?")) {
+                products.splice(idx, 1);
+                updateDashboardData();
+                renderSimulationData();
+                saveDataToCloud(); // Sincroniza
+                showToast("Produto excluído do inventário.", "info");
+            }
+        }
+
+        // Limpeza de filtros
+        function clearAllFilters() {
+            document.getElementById('search-input').value = "";
+            document.getElementById('filter-status').value = "";
+
+            updateDashboardData();
+            showToast("Filtros redefinidos com sucesso!", "info");
+        }
+
+        // Exportador formatado para Excel
+        function exportToExcel() {
+            const dataToExport = window.lastFilteredProducts;
+
+            if (!dataToExport || dataToExport.length === 0) {
+                showToast("Não há registros filtrados para exportar.", "error");
+                return;
+            }
+
+            let rowsHtml = "";
+            dataToExport.forEach(p => {
+                const cdsText = p.cdsStock && p.cdsStock.length > 0
+                    ? p.cdsStock.map(cd => `${cd.filial_cd}: ${cd.estoque_qtde.toLocaleString('pt-BR')} un`).join(" | ")
+                    : "Sem dados nos CDs";
+
+                let statusClass = "status-saudavel";
+                if (p.estoque_transito <= 0) {
+                    statusClass = "status-ruptura";
+                } else if (p.days < 15) {
+                    statusClass = "status-critico";
+                } else if (p.days > 60) {
+                    statusClass = "status-excesso";
+                }
+
+                rowsHtml += `
+          <tr>
+            <td style="mso-number-format:'@';">${p.cod_produto}</td>
+            <td>${p.name}</td>
+            <td class="currency">${p.custo}</td>
+            <td class="currency">${p.custo_unitario}</td>
+            <td class="integer">${p.estoque_qtde}</td>
+            <td class="integer">${p.giro_30d}</td>
+            <td class="integer">${p.estoque_transito}</td>
+            <td class="integer">${p.days}</td>
+            <td class="status ${statusClass}">${p.status}</td>
+            <td class="cd-info">${cdsText}</td>
+          </tr>
+        `;
+            });
+
+            const excelTemplate = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            table { border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; }
+            th { 
+              background-color: #4f46e5; 
+              color: #ffffff; 
+              font-weight: bold; 
+              text-align: left; 
+              padding: 12px 10px; 
+              border: 1px solid #cbd5e1;
+              font-size: 11pt;
+            }
+            td { 
+              padding: 8px 10px; 
+              border: 1px solid #cbd5e1; 
+              font-size: 10pt; 
+              vertical-align: middle;
+            }
+            .title-row { 
+              font-size: 16pt; 
+              font-weight: bold; 
+              color: #1e1b4b; 
+              height: 40px; 
+            }
+            .subtitle-row { 
+              font-size: 10pt; 
+              color: #475569; 
+              height: 25px; 
+            }
+            .currency { 
+              mso-number-format:"\\R\\$\\ #\\,##0\\.00"; 
+              text-align: right; 
+            }
+            .integer { 
+              mso-number-format:"\\#\\,##0"; 
+              text-align: right; 
+            }
+            .status { 
+              font-weight: bold; 
+              text-align: center; 
+            }
+            .status-saudavel { 
+              background-color: #d1fae5; 
+              color: #065f46; 
+            }
+            .status-critico { 
+              background-color: #fef3c7; 
+              color: #92400e; 
+            }
+            .status-ruptura { 
+              background-color: #fee2e2; 
+              color: #991b1b; 
+            }
+            .status-excesso { 
+              background-color: #dbeafe; 
+              color: #1e40af; 
+            }
+            .cd-info {
+              color: #047857;
+              font-size: 9pt;
+            }
+          </style>
+        </head>
+        <body>
+          <table>
+            <tr>
+              <td colspan="10" class="title-row" style="border:none;">StokeFlow PRO - Inventário Darkstore São João</td>
+            </tr>
+            <tr>
+              <td colspan="10" class="subtitle-row" style="border:none;">Exportado em: ${new Date().toLocaleString('pt-BR')} | Total de SKUs: ${dataToExport.length}</td>
+            </tr>
+            <tr><td colspan="10" style="border:none; height:15px;"></td></tr>
+            <thead>
+              <tr>
+                <th>Cód. Produto</th>
+                <th>Descrição do Item</th>
+                <th style="text-align: right;">Estoque a Custo</th>
+                <th style="text-align: right;">Custo Unitário</th>
+                <th style="text-align: right;">Estoque Físico Qtde</th>
+                <th style="text-align: right;">Giro 30d (Un)</th>
+                <th style="text-align: right;">Estoque c/ Trânsito</th>
+                <th style="text-align: right;">Dias Est. c/ Trânsito</th>
+                <th style="text-align: center;">Status</th>
+                <th>Saldos nos CDs</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+            const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute("href", url);
+            link.setAttribute("download", `StokeFlow_Darkstore_SaoJoao_${new Date().toISOString().slice(0, 10)}.xls`);
+            link.style.visibility = 'hidden';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("Planilha completa de São João exportada!", "success");
+        }
+
+        // Simulador de Picos de Giro
+        function handleSimulationSlider() {
+            currentSimulationPercentage = parseInt(document.getElementById('simulation-slider').value);
+            document.getElementById('simulation-percentage-label').innerText = `${currentSimulationPercentage > 0 ? '+' : ''}${currentSimulationPercentage}%`;
+
+            const desc = document.getElementById('simulation-desc');
+            if (currentSimulationPercentage === 0) {
+                desc.innerText = "Os produtos estão operando com a taxa de giro de 30 dias cadastrada.";
+            } else if (currentSimulationPercentage > 0) {
+                desc.innerText = `Aceleração geral de ${currentSimulationPercentage}% na velocidade de venda da Darkstore.`;
+            } else {
+                desc.innerText = `Retração geral de ${Math.abs(currentSimulationPercentage)}% na demanda diária de São João.`;
+            }
+
+            renderSimulationData();
+        }
+
+        function renderSimulationData() {
+            const factor = 1 + (currentSimulationPercentage / 100);
+            const processed = products.map(processProductData).map(p => {
+                const simGiro = p.giro_30d * factor;
+                let simDays = p.days;
+                if (simGiro > 0) {
+                    const simGiroDiario = simGiro / 30;
+                    simDays = Math.round(p.estoque_transito / simGiroDiario);
+                }
+                return { ...p, simGiro, simDays };
+            });
+
+            const listRupturas = document.getElementById('simulation-list-rupturas');
+            const listCritical = document.getElementById('simulation-list-critical');
+
+            listRupturas.innerHTML = "";
+            listCritical.innerHTML = "";
+
+            const simulatedRupturas = processed.filter(p => p.estoque_transito <= 0);
+            const simulatedCritical = processed.filter(p => p.estoque_transito > 0 && p.simDays < 15);
+
+            if (simulatedRupturas.length === 0) {
+                listRupturas.innerHTML = `<div class="text-xs text-slate-400 py-2">Sem rupturas simuladas.</div>`;
+            } else {
+                simulatedRupturas.forEach(p => {
+                    listRupturas.innerHTML += `
+            <div class="flex justify-between items-center bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-xs">
+              <div>
+                <span class="font-bold text-rose-900 block">${p.name}</span>
+                <span class="text-[10px] text-rose-600 font-mono">(Estoque Zerado)</span>
+              </div>
+              <span class="bg-rose-600 text-white font-extrabold px-2 py-0.5 rounded-md font-sans">ZERADO</span>
+            </div>
+          `;
+                });
+            }
+
+            if (simulatedCritical.length === 0) {
+                listCritical.innerHTML = `<div class="text-xs text-slate-400 py-2">Sem alertas de ruptura de curto prazo.</div>`;
+            } else {
+                simulatedCritical.forEach(p => {
+                    listCritical.innerHTML += `
+            <div class="flex justify-between items-center bg-amber-50 border border-amber-100 p-2.5 rounded-lg text-xs">
+              <div>
+                <span class="font-bold text-amber-950 block">${p.name}</span>
+                <span class="text-[10px] text-amber-600 font-mono">Cobertura Sob Demanda: ${p.simDays} dias</span>
+              </div>
+              <span class="font-bold text-amber-800 font-mono">${p.simDays} d rest.</span>
+            </div>
+          `;
+                });
+            }
+        }
+
+        function resetSimulation() {
+            document.getElementById('simulation-slider').value = 0;
+            handleSimulationSlider();
+            showToast("Configuração de simulação zerada.", "info");
+        }
+
+        function applySimulationPermanently() {
+            const factor = 1 + (currentSimulationPercentage / 100);
+            products = products.map(p => ({
+                ...p,
+                giro_30d: parseFloat((p.giro_30d * factor).toFixed(2)),
+                dias_transito: undefined
+            }));
+
+            currentSimulationPercentage = 0;
+            document.getElementById('simulation-slider').value = 0;
+            document.getElementById('simulation-percentage-label').innerText = "0%";
+
+            showToast("Novos coeficientes de giro aplicados à Darkstore!", "success");
+            updateDashboardData();
+            renderSimulationData();
+            saveDataToCloud(); // Sincroniza em Nuvem
+            switchTab('dashboard');
+        }
+
+        // Integração Inteligente com API do Gemini (Focado na Darkstore São João x CDs)
+        async function runAIAnalysis() {
+            const btn = document.getElementById('btn-run-ai');
+            const placeholder = document.getElementById('ai-placeholder');
+            const loading = document.getElementById('ai-loading');
+            const resultBlock = document.getElementById('ai-result');
+
+            btn.disabled = true;
+            placeholder.classList.add('hidden');
+            resultBlock.classList.add('hidden');
+            loading.classList.remove('hidden');
+
+            const steps = [
+                "Mapeando rupturas de estoque c/ trânsito em São João...",
+                "Calculando ociosidade de trânsito em Gravataí e demais CDs...",
+                "Calculando as necessidades ideais de reposição em lotes...",
+                "Gerando relatórios e sugestões táticas com o Gemini..."
+            ];
+            let stepIdx = 0;
+            const stepInterval = setInterval(() => {
+                if (stepIdx < steps.length) {
+                    document.getElementById('ai-loading-step').innerText = steps[stepIdx++];
+                }
+            }, 1200);
+
+            const systemPrompt = `Você é o StokeFlow AI, especialista em reabastecimento farmacêutico de Darkstores.
+Sua missão é analisar o inventário de produtos da 'Darkstore São João' (com foco nas rupturas ou produtos com poucos dias de cobertura) e cruzar com os saldos em estoque disponíveis nas distribuidoras informadas no CD (como Distribuidora Gravataí).
+
+Gere um plano de ordens de transferência inteligente de suprimentos do CD para a Darkstore São João para regularizar os dias de estoque de trânsito baseado no giro de 30 dias.
+
+Retorne EXCLUSIVAMENTE um JSON estrito no formato abaixo:
+{
+  "resumoExecutivo": "Resumo clínico curto detalhando se a Distribuidora Gravataí ou outros CDs têm saldo suficiente para cobrir as rupturas iminentes de São João.",
+  "recomendacoesCompra": [
+    { "produto": "Nome do item (CD Gravataí -> Darkstore São João)", "quantidade": 500, "prioridade": "CRÍTICA" }
+  ],
+  "insights": [
+    "Recomendações táticas específicas de giro e estocagem em Darkstores de saúde.",
+    "Avaliação de frete e aproveitamento do trânsito CD-LJ."
+  ]
+}`;
+
+            const userQuery = `Darkstore São João - Inventário: ${JSON.stringify(products, null, 2)}
+Estoques Disponíveis nos CDs: ${JSON.stringify(cdStockList, null, 2)}`;
+
+            const fetchWithRetry = async (url, options, maxRetries = 5) => {
+                let delay = 1000;
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if (response.ok) return response;
+                    } catch (e) { }
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+                throw new Error("Não foi possível conectar ao Gemini. Verifique sua chave de acesso.");
+            };
+
+            try {
+                const response = await fetchWithRetry(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: userQuery }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] },
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        resumoExecutivo: { type: "STRING" },
+                                        recomendacoesCompra: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    produto: { type: "STRING" },
+                                                    quantidade: { type: "NUMBER" },
+                                                    prioridade: { type: "STRING" }
+                                                },
+                                                required: ["produto", "quantidade", "prioridade"]
+                                            }
+                                        },
+                                        insights: {
+                                            type: "ARRAY",
+                                            items: { type: "STRING" }
+                                        }
+                                    },
+                                    required: ["resumoExecutivo", "recomendacoesCompra", "insights"]
+                                }
+                            }
+                        })
+                    }
+                );
+
+                clearInterval(stepInterval);
+                const resultData = await response.json();
+                const jsonText = resultData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!jsonText) throw new Error("Falha ao analisar os dados de estoque cognitivamente.");
+
+                const aiResponse = JSON.parse(jsonText);
+
+                document.getElementById('ai-executive-summary').innerText = aiResponse.resumoExecutivo;
+
+                const tableBody = document.getElementById('ai-table-recommendations');
+                tableBody.innerHTML = "";
+
+                if (aiResponse.recomendacoesCompra.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-slate-400">Todos os produtos estão com abastecimento regularizado nos CDs.</td></tr>`;
+                } else {
+                    aiResponse.recomendacoesCompra.forEach(rec => {
+                        const badgeColor = rec.prioridade === 'ALTA' || rec.prioridade === 'CRÍTICA' ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-amber-100 text-amber-800 border-amber-200';
+                        tableBody.innerHTML += `
+              <tr class="hover:bg-slate-50">
+                <td class="py-2.5 font-bold text-emerald-800">Transferência Externa</td>
+                <td class="py-2.5 font-semibold text-slate-900">${rec.produto}</td>
+                <td class="py-2.5 text-right font-bold text-slate-700">${rec.quantidade.toLocaleString('pt-BR')} un</td>
+                <td class="py-2.5 text-center">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase border ${badgeColor}">
+                    ${rec.prioridade}
+                  </span>
+                </td>
+              </tr>
+            `;
+                    });
+                }
+
+                const insightsList = document.getElementById('ai-insights-list');
+                insightsList.innerHTML = "";
+                aiResponse.insights.forEach(insight => {
+                    insightsList.innerHTML += `
+            <li class="flex gap-2 items-start bg-slate-50 p-2.5 border border-slate-100 rounded-lg">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
+              <span>${insight}</span>
+            </li>
+          `;
+                });
+
+                lucide.createIcons();
+                loading.classList.add('hidden');
+                resultBlock.classList.remove('hidden');
+                showToast("Plano logístico para a Darkstore São João concluído!", "success");
+
+            } catch (err) {
+                clearInterval(stepInterval);
+                loading.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                showToast(err.message, "error");
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function formatBrazilianNumber(val) {
+            return val.toLocaleString('pt-BR');
+        }
+
+        function parseBrazilianNumber(val) {
+            if (!val) return 0;
+            let cleaned = val.toString().trim().replace(/\s/g, '');
+            if (cleaned.includes('.') && cleaned.includes(',')) {
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (cleaned.includes(',')) {
+                cleaned = cleaned.replace(',', '.');
+            } else {
+                cleaned = cleaned.replace(/\./g, '');
+            }
+            return parseFloat(cleaned) || 0;
+        }
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(val);
+        }
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bg = "bg-white border-slate-200 text-slate-800";
+            let icon = "info";
+
+            if (type === "success") {
+                bg = "bg-emerald-600 text-white border-emerald-500 shadow-emerald-100";
+                icon = "check-circle";
+            } else if (type === "error") {
+                bg = "bg-rose-600 text-white border-rose-500 shadow-rose-100";
+                icon = "alert-triangle";
+            }
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg transition-all transform translate-y-2 opacity-0 pointer-events-auto max-w-sm ${bg}`;
+            toast.innerHTML = `
+        <i data-lucide="${icon}" class="w-5 h-5 shrink-0"></i>
+        <p class="text-xs font-semibold leading-relaxed">${message}</p>
+      `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function updateCharts(filteredData) {
+            const data = filteredData || products.map(processProductData);
+
+            // --- 1. Cobertura por Produto na Darkstore ---
+            const itemsToShow = data.slice(0, 10);
+            const productLabels = itemsToShow.map(p => p.name.length > 25 ? p.name.substring(0, 25) + "..." : p.name);
+            const productCoverages = itemsToShow.map(p => p.days);
+
+            const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+            categoryChartInstance = new Chart(ctxCategory, {
+                type: 'bar',
+                data: {
+                    labels: productLabels.length > 0 ? productLabels : ['Nenhum dado'],
+                    datasets: [{
+                        label: 'Dias de Cobertura',
+                        data: productCoverages.length > 0 ? productCoverages : [0],
+                        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                        hoverBackgroundColor: 'rgba(79, 70, 229, 1)',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Dias de Cobertura' }, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // --- 2. Saúde Geral do Catálogo ---
+            const rupturas = data.filter(p => p.estoque_transito <= 0).length;
+            const criticos = data.filter(p => p.estoque_transito > 0 && p.days < 15).length;
+            const saudaveis = data.filter(p => p.days >= 15 && p.days <= 60).length;
+            const excessos = data.filter(p => p.days > 60).length;
+
+            document.getElementById('legend-rupturas').innerText = rupturas;
+            document.getElementById('legend-critico').innerText = criticos;
+            document.getElementById('legend-saudavel').innerText = saudaveis;
+
+            const ctxHealth = document.getElementById('healthChart').getContext('2d');
+            if (healthChartInstance) {
+                healthChartInstance.destroy();
+            }
+            healthChartInstance = new Chart(ctxHealth, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ruptura', 'Crítico (<15d)', 'Saudável', 'Excesso (>60d)'],
+                    datasets: [{
+                        data: [rupturas, criticos, saudaveis, excessos],
+                        backgroundColor: ['#e11d48', '#f59e0b', '#10b981', '#3b82f6'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Inicialização ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            setupFirebase();
+
+            // Listeners de Filtros
+            document.getElementById('search-input').addEventListener('input', updateDashboardData);
+            document.getElementById('filter-status').addEventListener('change', updateDashboardData);
+
+            // Simulator Slider
+            document.getElementById('simulation-slider').addEventListener('input', handleSimulationSlider);
+
+            document.getElementById('product-form').addEventListener('submit', handleFormSubmit);
+
+            renderSimulationData();
+        });
+
+        // Vinculação de funções locais ao objeto global "window" para os disparadores inline de cliques (HTML)
+        window.switchTab = switchTab;
+        window.openImportModal = openImportModal;
+        window.closeImportModal = closeImportModal;
+        window.openImportCDModal = openImportCDModal;
+        window.closeImportCDModal = closeImportCDModal;
+        window.loadSampleData = loadSampleData;
+        window.loadSampleCDData = loadSampleCDData;
+        window.processImportedText = processImportedText;
+        window.processCDImportedText = processCDImportedText;
+        window.editProduct = editProduct;
+        window.closeProductModal = closeProductModal;
+        window.deleteProductAtIndex = deleteProductAtIndex;
+        window.handleSimulationSlider = handleSimulationSlider;
+        window.resetSimulation = resetSimulation;
+        window.applySimulationPermanently = applySimulationPermanently;
+        window.runAIAnalysis = runAIAnalysis;
+        window.clearAllFilters = clearAllFilters;
+        window.exportToExcel = exportToExcel;
+
+    </script>
+</body>
+
+</html>
