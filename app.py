@@ -306,9 +306,7 @@ def main():
         
         with col_f1:
             search_query = st.text_input("🔍 Buscar por Código ou Descrição", "")
-            if st.button("🔄 Carregar Novos Arquivos", use_container_width=True):
-                clear_memory()
-                st.rerun()
+            action_buttons_container = st.empty()
                 
         with col_f2:
             all_curvas = sorted(df['Curva'].unique().tolist())
@@ -343,6 +341,34 @@ def main():
         mask = mask & cd_mask
 
     df_filtered = df[mask]
+
+    # ------------------------------------------
+    # BOTÕES DE AÇÃO E EXPORTAÇÃO
+    # ------------------------------------------
+    with action_buttons_container.container():
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("🔄 Novos Arquivos", use_container_width=True):
+                clear_memory()
+                st.rerun()
+        with btn_col2:
+            import io
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_filtered.to_excel(writer, index=False, sheet_name='Inventário')
+                # Ajuste automático de largura de colunas para excel "bem formatado"
+                worksheet = writer.sheets['Inventário']
+                for idx, col in enumerate(df_filtered.columns):
+                    max_len = max(df_filtered[col].astype(str).map(len).max(), len(col)) + 2
+                    worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 40)
+            
+            st.download_button(
+                label="📥 Exportar Excel",
+                data=output.getvalue(),
+                file_name="Inventario_Filtrado_StokeFlow.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
     # ------------------------------------------
     # KPIS SUPERIORES
