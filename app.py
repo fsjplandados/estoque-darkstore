@@ -24,13 +24,14 @@ def inject_custom_css():
             .stApp { background-color: #f8fafc; }
             #MainMenu {display: none;}
             header {display: none;}
-            .block-container { padding-top: 0rem; padding-bottom: 1rem; max-width: 95%; }
+            [data-testid="stHeader"] {display: none !important;}
+            .block-container { padding-top: 0rem; padding-bottom: 1rem; }
 
             /* Header Customizado Estilo Tailwind */
             .custom-header {
-                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1.5rem 5%;
+                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1.5rem 5rem;
                 display: flex; justify-content: space-between; align-items: center;
-                margin-left: -5.5%; margin-right: -5.5%; margin-top: 0rem; margin-bottom: 2rem;
+                margin-left: -5rem; margin-right: -5rem; margin-top: -3.5rem; margin-bottom: 2rem;
             }
             .header-left { display: flex; align-items: center; gap: 1rem; }
             .header-logo-box { background-color: #4f46e5; padding: 0.5rem; border-radius: 0.5rem; color: white; display: flex; align-items: center;}
