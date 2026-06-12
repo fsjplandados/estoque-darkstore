@@ -39,6 +39,6 @@ venv.bak/
 stokeflow_cache.pkl
 
 # Se quiser ignorar as planilhas do github (evitar vazar dados confidenciais), descomente as linhas abaixo:
- *.xlsx
- *.xls
- *.csv
+*.xlsx
+*.xls
+*.csv
