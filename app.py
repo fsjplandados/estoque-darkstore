@@ -26,23 +26,33 @@ def inject_custom_css():
             #MainMenu {display: none;}
             header {display: none;}
             [data-testid="stHeader"] {display: none !important;}
-            .block-container { padding-top: 0rem; padding-bottom: 1rem; }
+            .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
 
-            /* Header Customizado Estilo Tailwind */
+            /* Header Customizado Estilo Tailwind / Modern SaaS */
             .custom-header {
-                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 0.75rem 5rem;
+                background-color: white; border-bottom: 1px solid #e2e8f0; padding: 0.5rem 5rem;
                 display: flex; justify-content: space-between; align-items: center;
-                margin-left: -5rem; margin-right: -5rem; margin-top: -3.5rem; margin-bottom: 1.5rem;
+                margin-left: -5rem; margin-right: -5rem; margin-top: -1rem; margin-bottom: 1.5rem;
+                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
             }
-            .header-left { display: flex; align-items: center; gap: 1rem; }
-            .header-logo-box { background-color: #4f46e5; padding: 0.5rem; border-radius: 0.5rem; color: white; display: flex; align-items: center;}
-            .header-title { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.5rem;}
-            .header-subtitle { font-size: 0.75rem; color: #64748b; margin: 0; }
-            .badge-darkstore { background-color: #e0e7ff; color: #4338ca; font-size: 0.65rem; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 9999px; }
+            .header-left { display: flex; align-items: center; gap: 1.5rem; }
+            .header-divider { width: 1px; height: 32px; background-color: #e2e8f0; }
+            .header-title-row { display: flex; align-items: center; gap: 0.75rem; }
+            .header-title { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1; letter-spacing: -0.02em;}
+            .header-subtitle { font-size: 0.85rem; color: #64748b; margin: 0; font-weight: 500;}
+            .badge-darkstore { background-color: #f8fafc; color: #475569; font-size: 0.65rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 0.375rem; letter-spacing: 0.05em; border: 1px solid #e2e8f0;}
             
-            .header-right { display: flex; align-items: center; gap: 1.5rem; }
-            .sync-badge { display: flex; align-items: center; gap: 0.35rem; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 0.375rem; }
-            .sync-dot { width: 6px; height: 6px; background-color: #22c55e; border-radius: 50%; }
+            .header-right { display: flex; align-items: center; gap: 1rem; }
+            .sync-container { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
+            .sync-badge { display: flex; align-items: center; gap: 0.4rem; color: #059669; font-size: 0.8rem; font-weight: 700; line-height: 1;}
+            .sync-dot { width: 8px; height: 8px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 0 2px #d1fae5; animation: pulse 2s infinite;}
+            .sync-time { font-size: 0.7rem; color: #94a3b8; font-weight: 500; margin-top: 0.25rem;}
+            
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+            }
 
             /* Abas */
             .tabs-container { display: flex; gap: 1.5rem; border-bottom: 1px solid #e2e8f0; margin-bottom: 2rem; }
@@ -105,14 +115,18 @@ def render_header():
         <div class="custom-header">
             <div class="header-left">
                 {logo_html}
-                <div>
-                    <h1 class="header-title"> <span class="badge-darkstore">DARKSTORE</span></h1>
-                    <p class="header-subtitle">Controle e Analise de Estoque</p>
+                <div class="header-divider"></div>
+                <div class="header-title-row">
+                    <h1 class="header-title">StokeFlow</h1>
+                    <span class="badge-darkstore">DARKSTORE</span>
+                    <span class="header-subtitle" style="margin-left: 0.25rem;">|&nbsp;&nbsp;&nbsp;Inteligência de Abastecimento e Controle de Ruptura</span>
                 </div>
             </div>
             <div class="header-right">
-                {estoque_html}
-                <div class="sync-badge"><div class="sync-dot"></div> Sincronizado</div>
+                <div class="sync-container">
+                    <div class="sync-badge"><div class="sync-dot"></div> CONECTADO</div>
+                    <div class="sync-time">ERP Sincronizado</div>
+                </div>
             </div>
         </div>
         <div class="tabs-container">
@@ -184,98 +198,96 @@ def clean_cod(val):
     return val_str if val_str else None
 
 @st.cache_data(show_spinner=False)
-def process_data(file_curvas, file_darkstore, file_cds):
-    df_curvas = pd.read_excel(file_curvas)
-    df_curvas = clean_column_names(df_curvas)
-    
-    col_cod_curva = next((c for c in df_curvas.columns if 'codproduto' in c), None)
-    col_curva = next((c for c in df_curvas.columns if c == 'curvavalor'), None)
-    
-    valid_skus = {}
-    if col_cod_curva and col_curva:
-        for _, row in df_curvas.iterrows():
-            curva = str(row[col_curva]).upper().strip()
-            if curva in ['CURVA A', 'CURVA B']:
-                cod = clean_cod(row[col_cod_curva])
-                if cod: valid_skus[cod] = curva
-
+def process_data(file_darkstore, file_cds):
+    # 1. Carregar CDs e Consolidar
     df_cds = pd.read_excel(file_cds)
-    df_cds = clean_column_names(df_cds)
-    df_cds = df_cds.iloc[1:] # Pula a 2ª linha (Total)
     
-    col_cod_cd = next((c for c in df_cds.columns if 'codproduto' in c), None)
-    col_filial = next((c for c in df_cds.columns if 'descfilial' in c), None)
-    col_qtde_cd = next((c for c in df_cds.columns if c == 'estoqueqtde'), None)
+    col_filial = next((c for c in df_cds.columns if 'filial' in str(c).lower()), None)
+    col_cod_cd = next((c for c in df_cds.columns if 'cod' in str(c).lower() and 'produto' in str(c).lower()), None)
+    col_qtde_cd = next((c for c in df_cds.columns if 'qtde' in str(c).lower() and 'estoque' in str(c).lower()), None)
     
     cd_map = {}
     if col_cod_cd and col_qtde_cd:
         for _, row in df_cds.iterrows():
             cod = clean_cod(row[col_cod_cd])
-            if cod in valid_skus:
-                filial = str(row[col_filial]) if col_filial else "CD Padrao"
-                qtde = int(row[col_qtde_cd]) if pd.notna(row[col_qtde_cd]) else 0
-                if cod not in cd_map:
-                    cd_map[cod] = []
+            filial = str(row[col_filial]) if col_filial else "CD Padrao"
+            qtde = int(row[col_qtde_cd]) if pd.notna(row[col_qtde_cd]) else 0
+            if cod not in cd_map:
+                cd_map[cod] = []
+            if qtde > 0:
                 cd_map[cod].append({"filial": filial, "qtde": qtde})
-
+                
+    # 2. Carregar Darkstore e Montar Base Final
     df_dark = pd.read_excel(file_darkstore)
-    df_dark = clean_column_names(df_dark)
-    df_dark = df_dark.iloc[1:] # Pula a 2ª linha (Total)
+    df_dark = df_dark[df_dark['Desc_Filial'].str.strip().str.upper() != 'TOTAL']
     
-    col_cod = next((c for c in df_dark.columns if 'codproduto' in c), None)
-    col_name = next((c for c in df_dark.columns if 'descproduto' in c or 'descri' in c), None)
-    col_custo = next((c for c in df_dark.columns if c == 'estoqueacusto'), None)
-    col_qtde = next((c for c in df_dark.columns if c == 'estoqueqtde'), None)
-    col_giro = next((c for c in df_dark.columns if 'giro030dias' in c or 'giro' in c), None)
-    col_transit = next((c for c in df_dark.columns if 'transito' in c), None)
+    col_cod = next((c for c in df_dark.columns if 'cod' in str(c).lower() and 'produto' in str(c).lower()), None)
+    col_name = next((c for c in df_dark.columns if 'desc' in str(c).lower() and 'produto' in str(c).lower()), None)
+    col_custo = next((c for c in df_dark.columns if 'custo' in str(c).lower() and 'estoque' in str(c).lower()), None)
+    col_qtde = next((c for c in df_dark.columns if 'qtde' in str(c).lower() and 'estoque' in str(c).lower()), None)
+    col_giro = next((c for c in df_dark.columns if 'giro' in str(c).lower() and '030' in str(c).lower()), None)
+    col_transit = next((c for c in df_dark.columns if 'transito' in str(c).lower() and 'c/' in str(c).lower()), None)
+    col_filial_dark = next((c for c in df_dark.columns if 'filial' in str(c).lower()), None)
+    col_dias_estoque = next((c for c in df_dark.columns if 'dias estoque' in str(c).lower()), None)
+    col_liquido = next((c for c in df_dark.columns if 'liquido' in str(c).lower()), None)
+    
+    if not col_transit:
+        col_transit = next((c for c in df_dark.columns if 'transito' in str(c).lower()), None)
+
+    # 3. Calcular Curva ABC Dinâmica (Pareto)
+    if col_liquido and col_cod:
+        df_dark[col_liquido] = pd.to_numeric(df_dark[col_liquido], errors='coerce').fillna(0)
+        df_dark = df_dark.sort_values(by=col_liquido, ascending=False)
+        
+        soma_total = df_dark[col_liquido].clip(lower=0).sum() # Ignorar valores negativos na soma
+        if soma_total > 0:
+            df_dark['perc_liquido'] = df_dark[col_liquido].clip(lower=0) / soma_total
+            df_dark['perc_acumulado'] = df_dark['perc_liquido'].cumsum()
+        else:
+            df_dark['perc_acumulado'] = 1.0
+            
+        def classificar_curva(acumulado, faturamento):
+            if faturamento <= 0: return "CURVA C"
+            if acumulado <= 0.60: return "CURVA A"
+            elif acumulado <= 0.80: return "CURVA B"
+            else: return "CURVA C"
+            
+        df_dark['Curva'] = df_dark.apply(lambda x: classificar_curva(x['perc_acumulado'], x[col_liquido]), axis=1)
+    else:
+        df_dark['Curva'] = "SEM CURVA"
 
     products = []
     for _, row in df_dark.iterrows():
-        cod = clean_cod(row[col_cod])
-        if cod in valid_skus:
+        cod = clean_cod(row[col_cod]) if col_cod else None
+        if cod:
+            curva = str(row['Curva']) if 'Curva' in df_dark.columns else "SEM CURVA"
             giro_30d = float(row[col_giro]) if col_giro and pd.notna(row[col_giro]) else 0.0
+            venda_liq = float(row[col_liquido]) if col_liquido and pd.notna(row[col_liquido]) else 0.0
+            
+            estoque_fisico = int(row[col_qtde]) if col_qtde and pd.notna(row[col_qtde]) else 0
             estoque_transito = int(row[col_transit]) if col_transit and pd.notna(row[col_transit]) else 0
             
-            giro_diario = giro_30d / 30
-            if giro_diario > 0:
-                days = round(estoque_transito / giro_diario)
-            elif estoque_transito <= 0:
-                days = 0
-            else:
-                days = 999
-                
-            if estoque_transito <= 0:
-                status = "Ruptura"
-            elif days < 15:
-                status = "Crítico"
-            elif days <= 60:
-                status = "Saudável"
-            else:
-                status = "Excesso"
-                
             cds_associados = cd_map.get(cod, [])
             estoque_cd_total = sum(cd['qtde'] for cd in cds_associados)
             cds_nomes = ", ".join(list(set([cd['filial'] for cd in cds_associados])))
-
+            
             products.append({
+                "Filial Origem": str(row[col_filial_dark]) if col_filial_dark else "Darkstore",
                 "Código Prod.": cod,
                 "Descrição": str(row[col_name]) if col_name else f"Produto {cod}",
-                "Curva": valid_skus[cod],
+                "Curva": curva,
                 "Custo R$": float(row[col_custo]) if col_custo and pd.notna(row[col_custo]) else 0.0,
-                "Estoque Físico": int(row[col_qtde]) if col_qtde and pd.notna(row[col_qtde]) else 0,
-                "Giro 30d": giro_30d,
+                "Venda 30d (R$)": venda_liq,
+                "Estoque Físico": estoque_fisico,
                 "Estoque Trânsito": estoque_transito,
-                "Dias Cobertura": days,
-                "Status": status,
+                "Giro 30d (Un)": giro_30d,
+                "Dias Est. Original": float(row[col_dias_estoque]) if col_dias_estoque and pd.notna(row[col_dias_estoque]) else 0.0,
                 "Total em CDs": estoque_cd_total,
                 "CDs Parceiros": cds_nomes
             })
             
     df_final = pd.DataFrame(products)
-    
-    # Salvar cache persistente (memória UX)
     df_final.to_pickle(CACHE_FILE)
-    
     return df_final
 
 def load_memory():
@@ -303,33 +315,62 @@ def main():
             st.session_state['df'] = cached_df
 
     if 'df' not in st.session_state:
-        # TELA DE ONBOARDING
+        # TELA DE ONBOARDING PARA DEPLOY
         st.markdown('<br>', unsafe_allow_html=True)
-        st.info("👋 Bem-vindo ao StokeFlow! Carregue as 3 planilhas para gerar o seu painel instantâneo.")
+        st.info("👋 Bem-vindo ao StokeFlow! Carregue os relatórios de estoque oficiais para gerar o painel inteligente.")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         with col1:
-            file_curvas = st.file_uploader("1. Produtos por Curva (Excel)", type=['xlsx', 'xls'])
+            file_darkstore = st.file_uploader("1. Base Darkstore (Estoque e Giro)", type=['xlsx', 'xls'])
         with col2:
-            file_darkstore = st.file_uploader("2. Estoque Darkstore (Excel)", type=['xlsx', 'xls'])
-        with col3:
-            file_cds = st.file_uploader("3. Estoque CDs (Excel)", type=['xlsx', 'xls'])
+            file_cds = st.file_uploader("2. Parceiros (Estoque CDs)", type=['xlsx', 'xls'])
             
         if st.button("Processar Dados", type="primary", use_container_width=True):
-            if file_curvas and file_darkstore and file_cds:
-                with st.spinner("Extraindo e processando dados..."):
-                    df = process_data(file_curvas, file_darkstore, file_cds)
+            if file_darkstore and file_cds:
+                with st.spinner("Analisando faturamento, calculando Curvas ABC e cruzando inventário..."):
+                    df = process_data(file_darkstore, file_cds)
                     st.session_state['df'] = df
                     st.rerun()
             else:
-                st.error("Por favor, faça o upload das 3 planilhas para prosseguir.")
+                st.error("Por favor, faça o upload das 2 planilhas obrigatórias para prosseguir.")
         return
 
     # TELA DO DASHBOARD (Memória Carregada)
     df = st.session_state['df']
     
+    # Failsafe de Migração: se a memória na sessão for da versão antiga, força o reset
+    if 'Giro 30d (Un)' not in df.columns:
+        clear_memory()
+        st.rerun()
+    
     render_header()
     
+    # ------------------------------------------
+    # CÁLCULO DE COBERTURA E STATUS
+    # ------------------------------------------
+    df['Giro Diário'] = df['Giro 30d (Un)'] / 30.0
+    
+    def calculate_cobertura(row):
+        transito = row['Estoque Trânsito']
+        giro_d = row['Giro Diário']
+        if transito <= 0:
+            return 0
+        if giro_d == 0 and transito > 0:
+            return 999
+        return round(transito / giro_d)
+        
+    df['Dias Cobertura'] = df.apply(calculate_cobertura, axis=1)
+    
+    def calculate_status(row):
+        transito = row['Estoque Trânsito']
+        dias = row['Dias Cobertura']
+        if transito <= 0: return "Ruptura"
+        if dias < 15: return "Crítico"
+        if dias <= 60: return "Saudável"
+        return "Excesso"
+        
+    df['Status'] = df.apply(calculate_status, axis=1)
+
     # ------------------------------------------
     # FILTROS PRINCIPAIS (EXPANDER)
     # ------------------------------------------
@@ -341,6 +382,10 @@ def main():
             action_buttons_container = st.empty()
                 
         with col_f2:
+            if df.empty:
+                st.error("Nenhum dado encontrado! Verifique a classificação da curva.")
+                return
+
             all_curvas = sorted(df['Curva'].unique().tolist())
             selected_curvas = st.multiselect("Curva", all_curvas, default=all_curvas)
             
@@ -478,14 +523,17 @@ def main():
         use_container_width=True,
         hide_index=True,
         column_config={
+            "Filial Origem": st.column_config.TextColumn("Filial", width="small"),
             "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
             "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
             "Custo R$": st.column_config.NumberColumn("Custo Total", format="R$ %.2f"),
+            "Venda 30d (R$)": st.column_config.NumberColumn("Rotatividade 30d", format="R$ %.2f"),
             "Estoque Físico": st.column_config.NumberColumn("Estoque Loja"),
-            "Giro 30d": st.column_config.NumberColumn("Giro Mensal"),
+            "Giro 30d (Un)": st.column_config.NumberColumn("Giro Mensal"),
             "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito"),
+            "Dias Est. Original": st.column_config.NumberColumn("Rotatividade (Dias Est.)"),
             "Dias Cobertura": st.column_config.ProgressColumn(
-                "Cobertura",
+                "Cobertura Calculada",
                 help="Dias de cobertura projetados",
                 format="%d d",
                 min_value=0,
