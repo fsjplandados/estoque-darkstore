@@ -131,7 +131,6 @@ def render_header():
         </div>
         <div class="tabs-container">
             <div class="tab-active"><svg width="16" height="16" style="display:inline; margin-bottom:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Painel & Inventário</div>
-            <div class="tab-inactive"><svg width="16" height="16" style="display:inline; margin-bottom:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg> Simulador de Demanda</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -507,7 +506,13 @@ def main():
             if not status_counts.empty:
                 fig_pie = px.pie(status_counts, values='Quantidade', names='Status', hole=0.6,
                                  color='Status', color_discrete_map=color_map)
-                fig_pie.update_layout(margin=dict(l=0, r=0, t=10, b=0), showlegend=False, paper_bgcolor='rgba(0,0,0,0)')
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label', textfont_size=11)
+                fig_pie.update_layout(
+                    margin=dict(l=0, r=0, t=10, b=0), 
+                    showlegend=True, 
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                    paper_bgcolor='rgba(0,0,0,0)'
+                )
                 st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
             else:
                 st.info("Nenhum dado.")
