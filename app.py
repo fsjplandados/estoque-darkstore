@@ -419,6 +419,27 @@ def main():
     df_filtered = df[mask]
 
     # ------------------------------------------
+    # FILTRO DINÂMICO DO GRÁFICO DE ROSCA
+    # ------------------------------------------
+    df_filtered_cross = df_filtered.copy()
+    pie_selection_status = []
+    
+    if 'pie_chart' in st.session_state:
+        points = st.session_state.pie_chart.get('selection', {}).get('points', [])
+        for p in points:
+            if 'label' in p:
+                pie_selection_status.append(p['label'])
+            elif 'pointIndex' in p and 'status_counts_for_pie' in st.session_state:
+                idx = p['pointIndex']
+                try:
+                    pie_selection_status.append(st.session_state.status_counts_for_pie.iloc[idx]['Status'])
+                except Exception:
+                    pass
+
+    if pie_selection_status:
+        df_filtered_cross = df_filtered[df_filtered['Status'].isin(pie_selection_status)]
+
+    # ------------------------------------------
     # BOTÕES DE AÇÃO E EXPORTAÇÃO
     # ------------------------------------------
     with action_buttons_container.container():
@@ -431,11 +452,11 @@ def main():
             import io
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_filtered.to_excel(writer, index=False, sheet_name='Inventário')
+                df_filtered_cross.to_excel(writer, index=False, sheet_name='Inventário')
                 # Ajuste automático de largura de colunas para excel "bem formatado"
                 worksheet = writer.sheets['Inventário']
-                for idx, col in enumerate(df_filtered.columns):
-                    max_len = max(df_filtered[col].astype(str).map(len).max(), len(col)) + 2
+                for idx, col in enumerate(df_filtered_cross.columns):
+                    max_len = max(df_filtered_cross[col].astype(str).map(len).max(), len(col)) + 2
                     worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 40)
             
             st.download_button(
@@ -449,15 +470,15 @@ def main():
     # ------------------------------------------
     # KPIS SUPERIORES
     # ------------------------------------------
-    total_skus = len(df_filtered)
-    total_rupturas = len(df_filtered[df_filtered['Status'] == 'Ruptura'])
+    total_skus = len(df_filtered_cross)
+    total_rupturas = len(df_filtered_cross[df_filtered_cross['Status'] == 'Ruptura'])
     pct_ruptura = (total_rupturas / total_skus * 100) if total_skus > 0 else 0
     
-    df_valid_cov = df_filtered[df_filtered['Estoque Trânsito'] > 0]
+    df_valid_cov = df_filtered_cross[df_filtered_cross['Estoque Trânsito'] > 0]
     avg_cobertura = df_valid_cov['Dias Cobertura'].mean() if not df_valid_cov.empty else 0
     
-    saldo_cd_total = df_filtered['Total em CDs'].sum()
-    cds_unicos_list = list(set([item for sublist in df_filtered['CDs Parceiros'].dropna().apply(lambda x: [cd.strip() for cd in x.split(',') if cd.strip()]) for item in sublist]))
+    saldo_cd_total = df_filtered_cross['Total em CDs'].sum()
+    cds_unicos_list = list(set([item for sublist in df_filtered_cross['CDs Parceiros'].dropna().apply(lambda x: [cd.strip() for cd in x.split(',') if cd.strip()]) for item in sublist]))
     cds_unicos = len(cds_unicos_list)
     
     render_kpis(
@@ -477,7 +498,7 @@ def main():
     with col_chart1:
         with st.container(border=True):
             st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dias de Cobertura de Estoque c/ Trânsito por SKU</p>', unsafe_allow_html=True)
-            df_valid_charts = df_filtered[df_filtered['Dias Cobertura'] < 999]
+            df_valid_charts = df_filtered_cross[df_filtered_cross['Dias Cobertura'] < 999]
             df_top10 = df_valid_charts.sort_values(by="Dias Cobertura", ascending=False).head(10)
             
             if not df_top10.empty:
@@ -495,6 +516,7 @@ def main():
             st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg> Saúde do Catálogo (Darkstore)</p>', unsafe_allow_html=True)
             status_counts = df_filtered['Status'].value_counts().reset_index()
             status_counts.columns = ['Status', 'Quantidade']
+            st.session_state.status_counts_for_pie = status_counts
             
             color_map = {
                 'Ruptura': '#e11d48',
@@ -513,7 +535,7 @@ def main():
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                     paper_bgcolor='rgba(0,0,0,0)'
                 )
-                st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+                st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False}, key="pie_chart", on_select="rerun", selection_mode="points")
             else:
                 st.info("Nenhum dado.")
 
@@ -524,7 +546,7 @@ def main():
     st.markdown('**Inventário Detalhado**')
     
     st.dataframe(
-        df_filtered,
+        df_filtered_cross,
         use_container_width=True,
         hide_index=True,
         column_config={
