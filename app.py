@@ -5,6 +5,7 @@ import os
 import base64
 
 CACHE_FILE = "stokeflow_cache.pkl"
+VENDAS_CACHE_FILE = "stokeflow_vendas_cache.pkl"
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -129,9 +130,6 @@ def render_header():
                 </div>
             </div>
         </div>
-        <div class="tabs-container">
-            <div class="tab-active"><svg width="16" height="16" style="display:inline; margin-bottom:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Painel & Inventário</div>
-        </div>
     """, unsafe_allow_html=True)
 
 def render_kpis(skus, cds_mapped, rupturas, pct_ruptura, avg_cobertura, saldo_cd):
@@ -153,7 +151,7 @@ def render_kpis(skus, cds_mapped, rupturas, pct_ruptura, avg_cobertura, saldo_cd
         <div class="kpi-card">
             <div class="kpi-left">
                 <span class="kpi-title">ITENS EM RUPTURA IMINENTE</span>
-                <span class="kpi-value kpi-value-red">{rupturas} <span style="font-size:0.9rem">({pct_ruptura:.0f}%)</span></span>
+                <span class="kpi-value kpi-value-red">{rupturas} <span style="font-size:0.9rem">({int(pct_ruptura)}%)</span></span>
                 <span class="kpi-desc">Estoque c/ Trânsito zerado</span>
             </div>
             <div class="kpi-icon-box bg-red">
@@ -163,7 +161,7 @@ def render_kpis(skus, cds_mapped, rupturas, pct_ruptura, avg_cobertura, saldo_cd
         <div class="kpi-card">
             <div class="kpi-left">
                 <span class="kpi-title">COBERTURA MÉDIA</span>
-                <span class="kpi-value kpi-value-green">{avg_cobertura:.0f} dias</span>
+                <span class="kpi-value kpi-value-green">{int(avg_cobertura)} dias</span>
                 <span class="kpi-desc">Tempo de segurança da Darkstore</span>
             </div>
             <div class="kpi-icon-box bg-indigo">
@@ -294,12 +292,31 @@ def load_memory():
         return pd.read_pickle(CACHE_FILE)
     return None
 
+def load_vendas_memory():
+    if os.path.exists(VENDAS_CACHE_FILE):
+        return pd.read_pickle(VENDAS_CACHE_FILE)
+    return None
+
 def clear_memory():
     if os.path.exists(CACHE_FILE):
         os.remove(CACHE_FILE)
+    if os.path.exists(VENDAS_CACHE_FILE):
+        os.remove(VENDAS_CACHE_FILE)
     if 'df' in st.session_state:
         del st.session_state['df']
+    if 'df_vendas' in st.session_state:
+        del st.session_state['df_vendas']
     st.cache_data.clear()
+
+@st.cache_data(show_spinner=False)
+def process_vendas_data(file_vendas):
+    df_v = pd.read_excel(file_vendas)
+    df_v = df_v[df_v['Dia'].notna()]
+    df_v['Dia'] = pd.to_numeric(df_v['Dia'], errors='coerce')
+    df_v = df_v.dropna(subset=['Dia'])
+    df_v['Dia'] = df_v['Dia'].astype(int)
+    df_v = df_v.sort_values('Dia')
+    return df_v
 
 # ==========================================
 # INTERFACE PRINCIPAL
@@ -312,30 +329,47 @@ def main():
         cached_df = load_memory()
         if cached_df is not None:
             st.session_state['df'] = cached_df
+            
+    if 'df_vendas' not in st.session_state:
+        cached_vendas = load_vendas_memory()
+        if cached_vendas is not None:
+            st.session_state['df_vendas'] = cached_vendas
+        else:
+            st.session_state['df_vendas'] = pd.DataFrame()
 
     if 'df' not in st.session_state:
         # TELA DE ONBOARDING PARA DEPLOY
         st.markdown('<br>', unsafe_allow_html=True)
-        st.info("👋 Bem-vindo ao StokeFlow! Carregue os relatórios de estoque oficiais para gerar o painel inteligente.")
+        st.info("👋 Bem-vindo ao StokeFlow! As planilhas 1 e 2 são obrigatórias. A planilha de Vendas (3) é opcional.")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            file_darkstore = st.file_uploader("1. Base Darkstore (Estoque e Giro)", type=['xlsx', 'xls'])
+            file_darkstore = st.file_uploader("1. Base Darkstore (Estoque)", type=['xlsx', 'xls'])
         with col2:
             file_cds = st.file_uploader("2. Parceiros (Estoque CDs)", type=['xlsx', 'xls'])
+        with col3:
+            file_vendas = st.file_uploader("3. Vendas Diárias (Opcional)", type=['xlsx', 'xls'])
             
         if st.button("Processar Dados", type="primary", use_container_width=True):
             if file_darkstore and file_cds:
                 with st.spinner("Analisando faturamento, calculando Curvas ABC e cruzando inventário..."):
                     df = process_data(file_darkstore, file_cds)
+                    if file_vendas:
+                        df_v = process_vendas_data(file_vendas)
+                        df_v.to_pickle(VENDAS_CACHE_FILE)
+                    else:
+                        df_v = pd.DataFrame()
+                        
                     st.session_state['df'] = df
+                    st.session_state['df_vendas'] = df_v
                     st.rerun()
             else:
-                st.error("Por favor, faça o upload das 2 planilhas obrigatórias para prosseguir.")
+                st.error("Por favor, faça o upload das planilhas 1 e 2 (Estoque) para prosseguir.")
         return
 
     # TELA DO DASHBOARD (Memória Carregada)
     df = st.session_state['df']
+    df_vendas = st.session_state['df_vendas']
     
     # Failsafe de Migração: se a memória na sessão for da versão antiga, força o reset
     if 'Giro 30d (Un)' not in df.columns:
@@ -345,231 +379,328 @@ def main():
     render_header()
     
     # ------------------------------------------
-    # CÁLCULO DE COBERTURA E STATUS
+    # NAVEGAÇÃO NATIVA EM ABAS
     # ------------------------------------------
-    df['Giro Diário'] = df['Giro 30d (Un)'] / 30.0
+    st.markdown("""<style>
+        .stTabs [data-baseweb="tab-list"] { gap: 2rem; border-bottom: 1px solid #e2e8f0; }
+        .stTabs [data-baseweb="tab"] { height: 3.5rem; white-space: break-spaces; padding-top: 0.5rem; padding-bottom: 0.5rem; color: #64748b; font-weight: 600; font-size: 1rem;}
+        .stTabs [aria-selected="true"] { color: #0f172a !important; font-weight: 800; border-bottom-color: #0f172a !important;}
+    </style>""", unsafe_allow_html=True)
     
-    def calculate_cobertura(row):
-        transito = row['Estoque Trânsito']
-        giro_d = row['Giro Diário']
-        if transito <= 0:
-            return 0
-        if giro_d == 0 and transito > 0:
-            return 999
-        return round(transito / giro_d)
-        
-    df['Dias Cobertura'] = df.apply(calculate_cobertura, axis=1)
-    
-    def calculate_status(row):
-        transito = row['Estoque Trânsito']
-        dias = row['Dias Cobertura']
-        if transito <= 0: return "Ruptura"
-        if dias < 15: return "Crítico"
-        if dias <= 60: return "Saudável"
-        return "Excesso"
-        
-    df['Status'] = df.apply(calculate_status, axis=1)
+    tab_inv, tab_vendas = st.tabs(["📦 Painel & Inventário", "📈 Desempenho de Vendas"])
 
-    # ------------------------------------------
-    # FILTROS PRINCIPAIS (EXPANDER)
-    # ------------------------------------------
-    with st.expander("⚙️ Filtros e Pesquisa", expanded=True):
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    with tab_inv:
+        # ------------------------------------------
+        # CÁLCULO DE COBERTURA E STATUS
+        # ------------------------------------------
+        df['Giro Diário'] = df['Giro 30d (Un)'] / 30.0
+    
+        def calculate_cobertura(row):
+            transito = row['Estoque Trânsito']
+            giro_d = row['Giro Diário']
+            if transito <= 0:
+                return 0
+            if giro_d == 0 and transito > 0:
+                return 999
+            return round(transito / giro_d)
         
-        with col_f1:
-            search_query = st.text_input("🔍 Buscar por Código ou Descrição", "")
-            action_buttons_container = st.empty()
+        df['Dias Cobertura'] = df.apply(calculate_cobertura, axis=1)
+    
+        def calculate_status(row):
+            transito = row['Estoque Trânsito']
+            dias = row['Dias Cobertura']
+            if transito <= 0: return "Ruptura"
+            if dias < 15: return "Crítico"
+            if dias <= 60: return "Saudável"
+            return "Excesso"
+        
+        df['Status'] = df.apply(calculate_status, axis=1)
+
+        # ------------------------------------------
+        # FILTROS PRINCIPAIS (EXPANDER)
+        # ------------------------------------------
+        with st.expander("⚙️ Filtros e Pesquisa", expanded=True):
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        
+            with col_f1:
+                search_query = st.text_input("🔍 Buscar por Código ou Descrição", "")
+                action_buttons_container = st.empty()
                 
-        with col_f2:
-            if df.empty:
-                st.error("Nenhum dado encontrado! Verifique a classificação da curva.")
-                return
+            with col_f2:
+                if df.empty:
+                    st.error("Nenhum dado encontrado! Verifique a classificação da curva.")
+                    return
 
-            all_curvas = sorted(df['Curva'].unique().tolist())
-            selected_curvas = st.multiselect("Curva", all_curvas, default=all_curvas)
+                all_curvas = sorted(df['Curva'].unique().tolist())
+                selected_curvas = st.multiselect("Curva", all_curvas, default=all_curvas)
             
-        with col_f3:
-            all_status = ["Ruptura", "Crítico", "Saudável", "Excesso"]
-            selected_status = st.multiselect("Status", all_status, default=all_status)
+            with col_f3:
+                all_status = ["Ruptura", "Crítico", "Saudável", "Excesso"]
+                selected_status = st.multiselect("Status", all_status, default=all_status)
             
-        with col_f4:
-            cd_sets = df['CDs Parceiros'].dropna().apply(lambda x: [cd.strip() for cd in x.split(',') if cd.strip()])
-            all_cds = sorted(list(set([item for sublist in cd_sets for item in sublist])))
-            selected_cds = st.multiselect("Distribuidoras (CDs)", all_cds, default=all_cds)
+            with col_f4:
+                cd_sets = df['CDs Parceiros'].dropna().apply(lambda x: [cd.strip() for cd in x.split(',') if cd.strip()])
+                all_cds = sorted(list(set([item for sublist in cd_sets for item in sublist])))
+                selected_cds = st.multiselect("Distribuidoras (CDs)", all_cds, default=all_cds)
 
-    # ------------------------------------------
-    # APLICAÇÃO DE FILTROS
-    # ------------------------------------------
-    mask = df['Curva'].isin(selected_curvas) & df['Status'].isin(selected_status)
+        # ------------------------------------------
+        # APLICAÇÃO DE FILTROS
+        # ------------------------------------------
+        mask = df['Curva'].isin(selected_curvas) & df['Status'].isin(selected_status)
     
-    if search_query:
-        query_lower = search_query.lower()
-        search_mask = df['Descrição'].str.lower().str.contains(query_lower) | df['Código Prod.'].astype(str).str.contains(query_lower)
-        mask = mask & search_mask
+        if search_query:
+            query_lower = search_query.lower()
+            search_mask = df['Descrição'].str.lower().str.contains(query_lower) | df['Código Prod.'].astype(str).str.contains(query_lower)
+            mask = mask & search_mask
         
-    if len(selected_cds) < len(all_cds):
-        def has_selected_cd(cd_str):
-            if not cd_str: return False
-            row_cds = [c.strip() for c in cd_str.split(',')]
-            return any(c in selected_cds for c in row_cds)
+        if len(selected_cds) < len(all_cds):
+            def has_selected_cd(cd_str):
+                if not cd_str: return False
+                row_cds = [c.strip() for c in cd_str.split(',')]
+                return any(c in selected_cds for c in row_cds)
         
-        cd_mask = df['CDs Parceiros'].apply(has_selected_cd)
-        mask = mask & cd_mask
+            cd_mask = df['CDs Parceiros'].apply(has_selected_cd)
+            mask = mask & cd_mask
 
-    df_filtered = df[mask]
+        df_filtered = df[mask]
 
-    # ------------------------------------------
-    # FILTRO DINÂMICO DO GRÁFICO DE ROSCA
-    # ------------------------------------------
-    df_filtered_cross = df_filtered.copy()
-    pie_selection_status = []
+        # ------------------------------------------
+        # FILTRO DINÂMICO DO GRÁFICO DE ROSCA
+        # ------------------------------------------
+        df_filtered_cross = df_filtered.copy()
+        pie_selection_status = []
     
-    if 'pie_chart' in st.session_state:
-        points = st.session_state.pie_chart.get('selection', {}).get('points', [])
-        for p in points:
-            if 'label' in p:
-                pie_selection_status.append(p['label'])
-            elif 'pointIndex' in p and 'status_counts_for_pie' in st.session_state:
-                idx = p['pointIndex']
-                try:
-                    pie_selection_status.append(st.session_state.status_counts_for_pie.iloc[idx]['Status'])
-                except Exception:
-                    pass
+        if 'pie_chart' in st.session_state:
+            points = st.session_state.pie_chart.get('selection', {}).get('points', [])
+            for p in points:
+                if 'label' in p:
+                    pie_selection_status.append(p['label'])
+                elif 'pointIndex' in p and 'status_counts_for_pie' in st.session_state:
+                    idx = p['pointIndex']
+                    try:
+                        pie_selection_status.append(st.session_state.status_counts_for_pie.iloc[idx]['Status'])
+                    except Exception:
+                        pass
 
-    if pie_selection_status:
-        df_filtered_cross = df_filtered[df_filtered['Status'].isin(pie_selection_status)]
+        if pie_selection_status:
+            df_filtered_cross = df_filtered[df_filtered['Status'].isin(pie_selection_status)]
 
-    # ------------------------------------------
-    # BOTÕES DE AÇÃO E EXPORTAÇÃO
-    # ------------------------------------------
-    with action_buttons_container.container():
-        btn_col1, btn_col2 = st.columns(2)
-        with btn_col1:
-            if st.button("🔄 Novos Arquivos", use_container_width=True):
-                clear_memory()
-                st.rerun()
-        with btn_col2:
-            import io
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_filtered_cross.to_excel(writer, index=False, sheet_name='Inventário')
-                # Ajuste automático de largura de colunas para excel "bem formatado"
-                worksheet = writer.sheets['Inventário']
-                for idx, col in enumerate(df_filtered_cross.columns):
-                    max_len = max(df_filtered_cross[col].astype(str).map(len).max(), len(col)) + 2
-                    worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 40)
+        # ------------------------------------------
+        # BOTÕES DE AÇÃO E EXPORTAÇÃO
+        # ------------------------------------------
+        with action_buttons_container.container():
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                if st.button("🔄 Novos Arquivos", use_container_width=True):
+                    clear_memory()
+                    st.rerun()
+            with btn_col2:
+                import io
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df_filtered_cross.to_excel(writer, index=False, sheet_name='Inventário')
+                    # Ajuste automático de largura de colunas para excel "bem formatado"
+                    worksheet = writer.sheets['Inventário']
+                    for idx, col in enumerate(df_filtered_cross.columns):
+                        max_len = max(df_filtered_cross[col].astype(str).map(len).max(), len(col)) + 2
+                        worksheet.column_dimensions[chr(65 + idx)].width = min(max_len, 40)
             
-            st.download_button(
-                label="📥 Exportar Excel",
-                data=output.getvalue(),
-                file_name="Inventario_Filtrado_StokeFlow.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-
-    # ------------------------------------------
-    # KPIS SUPERIORES
-    # ------------------------------------------
-    total_skus = len(df_filtered_cross)
-    total_rupturas = len(df_filtered_cross[df_filtered_cross['Status'] == 'Ruptura'])
-    pct_ruptura = (total_rupturas / total_skus * 100) if total_skus > 0 else 0
-    
-    df_valid_cov = df_filtered_cross[df_filtered_cross['Estoque Trânsito'] > 0]
-    avg_cobertura = df_valid_cov['Dias Cobertura'].mean() if not df_valid_cov.empty else 0
-    
-    saldo_cd_total = df_filtered_cross['Total em CDs'].sum()
-    cds_unicos_list = list(set([item for sublist in df_filtered_cross['CDs Parceiros'].dropna().apply(lambda x: [cd.strip() for cd in x.split(',') if cd.strip()]) for item in sublist]))
-    cds_unicos = len(cds_unicos_list)
-    
-    render_kpis(
-        skus=total_skus, 
-        cds_mapped=cds_unicos, 
-        rupturas=total_rupturas, 
-        pct_ruptura=pct_ruptura, 
-        avg_cobertura=avg_cobertura, 
-        saldo_cd=saldo_cd_total
-    )
-
-    # ------------------------------------------
-    # GRÁFICOS
-    # ------------------------------------------
-    col_chart1, col_chart2 = st.columns([2, 1])
-    
-    with col_chart1:
-        with st.container(border=True):
-            st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dias de Cobertura de Estoque c/ Trânsito por SKU</p>', unsafe_allow_html=True)
-            df_valid_charts = df_filtered_cross[df_filtered_cross['Dias Cobertura'] < 999]
-            df_top10 = df_valid_charts.sort_values(by="Dias Cobertura", ascending=False).head(10)
-            
-            if not df_top10.empty:
-                df_top10['Label'] = df_top10['Descrição'].apply(lambda x: x[:20] + "..." if len(x) > 20 else x)
-                fig_bar = px.bar(df_top10, x='Label', y='Dias Cobertura', 
-                                 color_discrete_sequence=['#6366f1']) # Indigo blue
-                
-                fig_bar.update_layout(xaxis_title="", yaxis_title="Dias de Cobertura", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
-            else:
-                st.info("Nenhum dado para exibir.")
-
-    with col_chart2:
-        with st.container(border=True):
-            st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg> Saúde do Catálogo (Darkstore)</p>', unsafe_allow_html=True)
-            status_counts = df_filtered['Status'].value_counts().reset_index()
-            status_counts.columns = ['Status', 'Quantidade']
-            st.session_state.status_counts_for_pie = status_counts
-            
-            color_map = {
-                'Ruptura': '#e11d48',
-                'Crítico': '#f59e0b',
-                'Saudável': '#10b981',
-                'Excesso': '#3b82f6'
-            }
-            
-            if not status_counts.empty:
-                fig_pie = px.pie(status_counts, values='Quantidade', names='Status', hole=0.6,
-                                 color='Status', color_discrete_map=color_map)
-                fig_pie.update_traces(textposition='inside', textinfo='percent+label', textfont_size=11)
-                fig_pie.update_layout(
-                    margin=dict(l=0, r=0, t=10, b=0), 
-                    showlegend=True, 
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                    paper_bgcolor='rgba(0,0,0,0)'
+                st.download_button(
+                    label="📥 Exportar Excel",
+                    data=output.getvalue(),
+                    file_name="Inventario_Filtrado_StokeFlow.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
                 )
-                st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False}, key="pie_chart", on_select="rerun", selection_mode="points")
-            else:
-                st.info("Nenhum dado.")
 
-    # ------------------------------------------
-    # TABELA PRINCIPAL
-    # ------------------------------------------
-    st.markdown('<br>', unsafe_allow_html=True)
-    st.markdown('**Inventário Detalhado**')
+        # ------------------------------------------
+        # KPIS SUPERIORES
+        # ------------------------------------------
+        total_skus = len(df_filtered_cross)
+        total_rupturas = len(df_filtered_cross[df_filtered_cross['Status'] == 'Ruptura'])
+        pct_ruptura = (total_rupturas / total_skus * 100) if total_skus > 0 else 0
     
-    st.dataframe(
-        df_filtered_cross,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Filial Origem": st.column_config.TextColumn("Filial", width="small"),
-            "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
-            "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
-            "Custo R$": st.column_config.NumberColumn("Custo Total", format="R$ %.2f"),
-            "Venda 30d (R$)": st.column_config.NumberColumn("Rotatividade 30d", format="R$ %.2f"),
-            "Estoque Físico": st.column_config.NumberColumn("Estoque Loja"),
-            "Giro 30d (Un)": st.column_config.NumberColumn("Giro Mensal"),
-            "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito"),
-            "Dias Est. Original": st.column_config.NumberColumn("Rotatividade (Dias Est.)"),
-            "Dias Cobertura": st.column_config.ProgressColumn(
-                "Cobertura Calculada",
-                help="Dias de cobertura projetados",
-                format="%d d",
-                min_value=0,
-                max_value=120,
-            ),
-            "Total em CDs": st.column_config.NumberColumn("Total CDs Parceiros"),
-            "Status": st.column_config.TextColumn("Status de Saúde")
-        }
-    )
+        df_valid_cov = df_filtered_cross[df_filtered_cross['Estoque Trânsito'] > 0]
+        avg_cobertura = df_valid_cov['Dias Cobertura'].mean() if not df_valid_cov.empty else 0
+    
+        saldo_cd_total = df_filtered_cross['Total em CDs'].sum()
+        cds_unicos_list = list(set([item for sublist in df_filtered_cross['CDs Parceiros'].dropna().apply(lambda x: [cd.strip() for cd in x.split(',') if cd.strip()]) for item in sublist]))
+        cds_unicos = len(cds_unicos_list)
+    
+        render_kpis(
+            skus=total_skus, 
+            cds_mapped=cds_unicos, 
+            rupturas=total_rupturas, 
+            pct_ruptura=pct_ruptura, 
+            avg_cobertura=avg_cobertura, 
+            saldo_cd=saldo_cd_total
+        )
+
+        # ------------------------------------------
+        # GRÁFICOS
+        # ------------------------------------------
+        col_chart1, col_chart2 = st.columns([2, 1])
+    
+        with col_chart1:
+            with st.container(border=True):
+                st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Dias de Cobertura de Estoque c/ Trânsito por SKU</p>', unsafe_allow_html=True)
+                df_valid_charts = df_filtered_cross[df_filtered_cross['Dias Cobertura'] < 999]
+                df_top10 = df_valid_charts.sort_values(by="Dias Cobertura", ascending=False).head(10)
+            
+                if not df_top10.empty:
+                    df_top10['Label'] = df_top10['Descrição'].apply(lambda x: x[:20] + "..." if len(x) > 20 else x)
+                    fig_bar = px.bar(df_top10, x='Label', y='Dias Cobertura', 
+                                     color_discrete_sequence=['#6366f1']) # Indigo blue
+                
+                    fig_bar.update_layout(xaxis_title="", yaxis_title="Dias de Cobertura", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                    st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+                else:
+                    st.info("Nenhum dado para exibir.")
+
+        with col_chart2:
+            with st.container(border=True):
+                st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg> Saúde do Catálogo (Darkstore)</p>', unsafe_allow_html=True)
+                status_counts = df_filtered['Status'].value_counts().reset_index()
+                status_counts.columns = ['Status', 'Quantidade']
+                st.session_state.status_counts_for_pie = status_counts
+            
+                color_map = {
+                    'Ruptura': '#e11d48',
+                    'Crítico': '#f59e0b',
+                    'Saudável': '#10b981',
+                    'Excesso': '#3b82f6'
+                }
+            
+                if not status_counts.empty:
+                    fig_pie = px.pie(status_counts, values='Quantidade', names='Status', hole=0.6,
+                                     color='Status', color_discrete_map=color_map)
+                    fig_pie.update_traces(textposition='inside', textinfo='percent+label', textfont_size=11)
+                    fig_pie.update_layout(
+                        margin=dict(l=0, r=0, t=10, b=0), 
+                        showlegend=True, 
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                        paper_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False}, key="pie_chart", on_select="rerun", selection_mode="points")
+                else:
+                    st.info("Nenhum dado.")
+
+        # ------------------------------------------
+        # TABELA PRINCIPAL
+        # ------------------------------------------
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.markdown('**Inventário Detalhado**')
+    
+        st.dataframe(
+            df_filtered_cross,
+            use_container_width=True,
+            hide_index=True,
+            column_order=[
+                "Filial Origem",
+                "Código Prod.",
+                "Descrição",
+                "Curva",
+                "Status",
+                "Custo R$",
+                "Venda 30d (R$)",
+                "Estoque Físico",
+                "Estoque Trânsito",
+                "Dias Est. Original",
+                "Dias Cobertura",
+                "Total em CDs",
+                "CDs Parceiros"
+            ],
+            column_config={
+                "Filial Origem": st.column_config.TextColumn("Filial", width="small"),
+                "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
+                "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
+                "Custo R$": st.column_config.NumberColumn("Custo Total", format="R$ %.0f"),
+                "Venda 30d (R$)": st.column_config.NumberColumn("Rotatividade 30d", format="R$ %.0f"),
+                "Estoque Físico": st.column_config.NumberColumn("Estoque Loja", format="%d"),
+                "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito", format="%d"),
+                "Dias Est. Original": st.column_config.NumberColumn("Rotatividade (Dias Est.)", format="%d"),
+                "Dias Cobertura": st.column_config.ProgressColumn(
+                    "Cobertura Calculada",
+                    help="Dias de cobertura projetados",
+                    format="%d d",
+                    min_value=0,
+                    max_value=120,
+                ),
+                "Total em CDs": st.column_config.NumberColumn("Total CDs Parceiros", format="%d"),
+                "Status": st.column_config.TextColumn("Status de Saúde")
+            }
+        )
+
+    with tab_vendas:
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.markdown('**Visão Geral de Desempenho**')
+        
+        if df_vendas.empty:
+            st.warning("Nenhum dado de venda encontrado na planilha anexada.")
+        else:
+            total_receita = df_vendas['Rec. Liquida'].sum()
+            total_unidades = df_vendas['Quantidade'].sum()
+            ticket_medio = total_receita / total_unidades if total_unidades > 0 else 0
+            
+            total_r_str = f"R$ {total_receita:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            total_u_str = f"{total_unidades:,.0f}".replace(",", ".")
+            ticket_str = f"R$ {ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            
+            html_vendas_kpi = f"""
+            <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="kpi-card">
+                    <div class="kpi-left">
+                        <span class="kpi-title">TOTAL VENDIDO</span>
+                        <span class="kpi-value kpi-value-green">{total_r_str}</span>
+                        <span class="kpi-desc">Receita Líquida Acumulada</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-left">
+                        <span class="kpi-title">VOLUME</span>
+                        <span class="kpi-value" style="color: #3b82f6;">{total_u_str} un</span>
+                        <span class="kpi-desc">Peças vendidas</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-left">
+                        <span class="kpi-title">TICKET MÉDIO</span>
+                        <span class="kpi-value">{ticket_str}</span>
+                        <span class="kpi-desc">Por unidade vendida</span>
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(html_vendas_kpi, unsafe_allow_html=True)
+            
+            st.markdown('<br>', unsafe_allow_html=True)
+            col_v1, col_v2 = st.columns(2)
+            with col_v1:
+                with st.container(border=True):
+                    st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> Receita Líquida Diária</p>', unsafe_allow_html=True)
+                    fig_rev = px.line(df_vendas, x='Dia', y='Rec. Liquida', markers=True, color_discrete_sequence=['#10b981'])
+                    fig_rev.update_layout(xaxis_title="Dia do Mês", yaxis_title="R$", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                    st.plotly_chart(fig_rev, use_container_width=True, config={'displayModeBar': False})
+            with col_v2:
+                with st.container(border=True):
+                    st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Unidades Vendidas Diárias</p>', unsafe_allow_html=True)
+                    fig_vol = px.bar(df_vendas, x='Dia', y='Quantidade', color_discrete_sequence=['#3b82f6'])
+                    fig_vol.update_layout(xaxis_title="Dia do Mês", yaxis_title="Unidades", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                    st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
+            
+            st.markdown('<br>', unsafe_allow_html=True)
+            st.markdown('**Extrato Diário**')
+            st.dataframe(
+                df_vendas[['Dia', 'Quantidade', 'Mercadoria', 'Rec. Liquida', 'CMV', 'Margem']], 
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "Rec. Liquida": st.column_config.NumberColumn("Receita Líquida", format="R$ %.2f"),
+                    "Mercadoria": st.column_config.NumberColumn("Mercadoria (Bruto)", format="R$ %.2f"),
+                    "CMV": st.column_config.NumberColumn("CMV", format="R$ %.2f"),
+                    "Margem": st.column_config.NumberColumn("Margem", format="R$ %.2f"),
+                    "Quantidade": st.column_config.NumberColumn("Qtd Vendida", format="%d")
+                }
+            )
 
 if __name__ == '__main__':
     main()
