@@ -602,10 +602,9 @@ def main():
                 "Curva",
                 "Status",
                 "Custo R$",
-                "Venda 30d (R$)",
+                "Giro 30d (Un)",
                 "Estoque Físico",
                 "Estoque Trânsito",
-                "Dias Est. Original",
                 "Dias Cobertura",
                 "Total em CDs",
                 "CDs Parceiros"
@@ -614,11 +613,10 @@ def main():
                 "Filial Origem": st.column_config.TextColumn("Filial", width="small"),
                 "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
                 "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
-                "Custo R$": st.column_config.NumberColumn("Custo Total", format="R$ %.0f"),
-                "Venda 30d (R$)": st.column_config.NumberColumn("Rotatividade 30d", format="R$ %.0f"),
+                "Custo R$": st.column_config.NumberColumn("Estoque a Custo", format="R$ %.0f"),
+                "Giro 30d (Un)": st.column_config.NumberColumn("Giro 30d (Un)", format="%d un"),
                 "Estoque Físico": st.column_config.NumberColumn("Estoque Loja", format="%d"),
                 "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito", format="%d"),
-                "Dias Est. Original": st.column_config.NumberColumn("Rotatividade (Dias Est.)", format="%d"),
                 "Dias Cobertura": st.column_config.ProgressColumn(
                     "Cobertura Calculada",
                     help="Dias de cobertura projetados",
@@ -638,12 +636,12 @@ def main():
         if df_vendas.empty:
             st.warning("Nenhum dado de venda encontrado na planilha anexada.")
         else:
-            total_receita = df_vendas['Rec. Liquida'].sum()
-            total_unidades = df_vendas['Quantidade'].sum()
-            ticket_medio = total_receita / total_unidades if total_unidades > 0 else 0
+            total_receita = df_vendas['Mercadoria'].sum()
+            total_pedidos = df_vendas['Clientes'].sum()
+            ticket_medio = total_receita / total_pedidos if total_pedidos > 0 else 0
             
             total_r_str = f"R$ {total_receita:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            total_u_str = f"{total_unidades:,.0f}".replace(",", ".")
+            total_p_str = f"{total_pedidos:,.0f}".replace(",", ".")
             ticket_str = f"R$ {ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             
             html_vendas_kpi = f"""
@@ -657,16 +655,16 @@ def main():
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-left">
-                        <span class="kpi-title">VOLUME</span>
-                        <span class="kpi-value" style="color: #3b82f6;">{total_u_str} un</span>
-                        <span class="kpi-desc">Peças vendidas</span>
+                        <span class="kpi-title">PEDIDOS</span>
+                        <span class="kpi-value" style="color: #3b82f6;">{total_p_str}</span>
+                        <span class="kpi-desc">Pedidos realizados</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-left">
                         <span class="kpi-title">TICKET MÉDIO</span>
                         <span class="kpi-value">{ticket_str}</span>
-                        <span class="kpi-desc">Por unidade vendida</span>
+                        <span class="kpi-desc">Por pedido realizado</span>
                     </div>
                 </div>
             </div>
@@ -678,27 +676,30 @@ def main():
             with col_v1:
                 with st.container(border=True):
                     st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> Receita Líquida Diária</p>', unsafe_allow_html=True)
-                    fig_rev = px.line(df_vendas, x='Dia', y='Rec. Liquida', markers=True, color_discrete_sequence=['#10b981'])
+                    fig_rev = px.line(df_vendas, x='Dia', y='Mercadoria', markers=True, color_discrete_sequence=['#10b981'])
                     fig_rev.update_layout(xaxis_title="Dia do Mês", yaxis_title="R$", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_rev, use_container_width=True, config={'displayModeBar': False})
             with col_v2:
                 with st.container(border=True):
-                    st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Unidades Vendidas Diárias</p>', unsafe_allow_html=True)
-                    fig_vol = px.bar(df_vendas, x='Dia', y='Quantidade', color_discrete_sequence=['#3b82f6'])
-                    fig_vol.update_layout(xaxis_title="Dia do Mês", yaxis_title="Unidades", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                    st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Pedidos Diários</p>', unsafe_allow_html=True)
+                    fig_vol = px.bar(df_vendas, x='Dia', y='Clientes', color_discrete_sequence=['#3b82f6'])
+                    fig_vol.update_layout(xaxis_title="Dia do Mês", yaxis_title="Pedidos", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
             
             st.markdown('<br>', unsafe_allow_html=True)
             st.markdown('**Extrato Diário**')
+            
+            df_display = df_vendas[['Dia', 'Clientes', 'Mercadoria', '%CMV', 'Margem']].copy()
+            df_display['%CMV'] = df_display['%CMV'] * 100
+            
             st.dataframe(
-                df_vendas[['Dia', 'Quantidade', 'Mercadoria', 'Rec. Liquida', 'CMV', 'Margem']], 
+                df_display, 
                 use_container_width=True, hide_index=True,
                 column_config={
-                    "Rec. Liquida": st.column_config.NumberColumn("Receita Líquida", format="R$ %.2f"),
-                    "Mercadoria": st.column_config.NumberColumn("Mercadoria (Bruto)", format="R$ %.2f"),
-                    "CMV": st.column_config.NumberColumn("CMV", format="R$ %.2f"),
+                    "Mercadoria": st.column_config.NumberColumn("Receita Líquida", format="R$ %.2f"),
+                    "%CMV": st.column_config.NumberColumn("CMV (%)", format="%.2f %%"),
                     "Margem": st.column_config.NumberColumn("Margem", format="R$ %.2f"),
-                    "Quantidade": st.column_config.NumberColumn("Qtd Vendida", format="%d")
+                    "Clientes": st.column_config.NumberColumn("Pedidos", format="%d")
                 }
             )
 
