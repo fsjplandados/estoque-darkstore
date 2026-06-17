@@ -682,7 +682,7 @@ def main():
             with col_v2:
                 with st.container(border=True):
                     st.markdown('<p class="chart-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Pedidos Diários</p>', unsafe_allow_html=True)
-                    fig_vol = px.bar(df_vendas, x='Dia', y='Clientes', color_discrete_sequence=['#3b82f6'])
+                    fig_vol = px.bar(df_vendas, x='Dia', y='Pedidos', color_discrete_sequence=['#3b82f6'])
                     fig_vol.update_layout(xaxis_title="Dia do Mês", yaxis_title="Pedidos", margin=dict(l=0, r=0, t=10, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
             
