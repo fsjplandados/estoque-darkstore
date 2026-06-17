@@ -112,6 +112,8 @@ def render_header():
     except Exception:
         estoque_html = '<div class="header-logo-box"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>'
 
+    last_updated_str = st.session_state.get('last_updated', 'Hoje')
+
     st.markdown(f"""
         <div class="custom-header">
             <div class="header-left">
@@ -126,7 +128,7 @@ def render_header():
             <div class="header-right">
                 <div class="sync-container">
                     <div class="sync-badge"><div class="sync-dot"></div> CONECTADO</div>
-                    <div class="sync-time">ERP Sincronizado</div>
+                    <div class="sync-time">Atualizado em: {last_updated_str}</div>
                 </div>
             </div>
         </div>
@@ -288,8 +290,12 @@ def process_data(file_darkstore, file_cds):
     df_final.to_pickle(CACHE_FILE)
     return df_final
 
+from datetime import datetime
+
 def load_memory():
     if os.path.exists(CACHE_FILE):
+        mtime = os.path.getmtime(CACHE_FILE)
+        st.session_state['last_updated'] = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y às %H:%M")
         return pd.read_pickle(CACHE_FILE)
     return None
 
@@ -364,6 +370,8 @@ def main():
                         
                     st.session_state['df'] = df
                     st.session_state['df_vendas'] = df_v
+                    from datetime import datetime
+                    st.session_state['last_updated'] = datetime.now().strftime("%d/%m/%Y às %H:%M")
                     st.rerun()
             else:
                 st.error("Por favor, faça o upload das planilhas 1 e 2 (Estoque) para prosseguir.")
