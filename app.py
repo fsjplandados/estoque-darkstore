@@ -262,7 +262,8 @@ def process_data(file_darkstore, file_cds):
             venda_liq = float(row[col_liquido]) if col_liquido and pd.notna(row[col_liquido]) else 0.0
             
             estoque_fisico = int(row[col_qtde]) if col_qtde and pd.notna(row[col_qtde]) else 0
-            estoque_transito = int(row[col_transit]) if col_transit and pd.notna(row[col_transit]) else 0
+            estoque_transito_raw = int(row[col_transit]) if col_transit and pd.notna(row[col_transit]) else 0
+            estoque_transito = max(0, estoque_transito_raw - estoque_fisico)
             
             cds_associados = cd_map.get(cod, [])
             estoque_cd_total = sum(cd['qtde'] for cd in cds_associados)
@@ -316,6 +317,7 @@ def process_vendas_data(file_vendas):
     df_v = df_v.dropna(subset=['Dia'])
     df_v['Dia'] = df_v['Dia'].astype(int)
     df_v = df_v.sort_values('Dia')
+    df_v = df_v.rename(columns={'Clientes': 'Pedidos'})
     return df_v
 
 # ==========================================
@@ -396,20 +398,20 @@ def main():
         df['Giro Diário'] = df['Giro 30d (Un)'] / 30.0
     
         def calculate_cobertura(row):
-            transito = row['Estoque Trânsito']
+            estoque_fisico = row['Estoque Físico']
             giro_d = row['Giro Diário']
-            if transito <= 0:
+            if estoque_fisico <= 0:
                 return 0
-            if giro_d == 0 and transito > 0:
+            if giro_d == 0 and estoque_fisico > 0:
                 return 999
-            return round(transito / giro_d)
+            return round(estoque_fisico / giro_d)
         
         df['Dias Cobertura'] = df.apply(calculate_cobertura, axis=1)
     
         def calculate_status(row):
-            transito = row['Estoque Trânsito']
+            estoque_fisico = row['Estoque Físico']
             dias = row['Dias Cobertura']
-            if transito <= 0: return "Ruptura"
+            if estoque_fisico <= 0: return "Ruptura"
             if dias < 15: return "Crítico"
             if dias <= 60: return "Saudável"
             return "Excesso"
@@ -602,6 +604,7 @@ def main():
                 "Curva",
                 "Status",
                 "Custo R$",
+                "Venda 30d (R$)",
                 "Giro 30d (Un)",
                 "Estoque Físico",
                 "Estoque Trânsito",
@@ -614,6 +617,7 @@ def main():
                 "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
                 "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
                 "Custo R$": st.column_config.NumberColumn("Estoque a Custo", format="R$ %.0f"),
+                "Venda 30d (R$)": st.column_config.NumberColumn("Receita 30d", format="R$ %.0f"),
                 "Giro 30d (Un)": st.column_config.NumberColumn("Giro 30d (Un)", format="%d un"),
                 "Estoque Físico": st.column_config.NumberColumn("Estoque Loja", format="%d"),
                 "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito", format="%d"),
@@ -637,7 +641,7 @@ def main():
             st.warning("Nenhum dado de venda encontrado na planilha anexada.")
         else:
             total_receita = df_vendas['Mercadoria'].sum()
-            total_pedidos = df_vendas['Clientes'].sum()
+            total_pedidos = df_vendas['Pedidos'].sum()
             ticket_medio = total_receita / total_pedidos if total_pedidos > 0 else 0
             
             total_r_str = f"R$ {total_receita:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -689,7 +693,7 @@ def main():
             st.markdown('<br>', unsafe_allow_html=True)
             st.markdown('**Extrato Diário**')
             
-            df_display = df_vendas[['Dia', 'Clientes', 'Mercadoria', '%CMV', 'Margem']].copy()
+            df_display = df_vendas[['Dia', 'Pedidos', 'Mercadoria', '%CMV', 'Margem']].copy()
             df_display['%CMV'] = df_display['%CMV'] * 100
             
             st.dataframe(
@@ -699,7 +703,7 @@ def main():
                     "Mercadoria": st.column_config.NumberColumn("Receita Líquida", format="R$ %.2f"),
                     "%CMV": st.column_config.NumberColumn("CMV (%)", format="%.2f %%"),
                     "Margem": st.column_config.NumberColumn("Margem", format="R$ %.2f"),
-                    "Clientes": st.column_config.NumberColumn("Pedidos", format="%d")
+                    "Pedidos": st.column_config.NumberColumn("Pedidos", format="%d")
                 }
             )
 
