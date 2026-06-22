@@ -206,6 +206,7 @@ def process_data(file_darkstore, file_cds):
     col_qtde_cd = next((c for c in df_cds.columns if 'qtde' in str(c).lower() and 'estoque' in str(c).lower()), None)
     
     cd_map = {}
+    all_cd_names = set()
     if col_cod_cd and col_qtde_cd:
         for _, row in df_cds.iterrows():
             cod = clean_cod(row[col_cod_cd])
@@ -215,6 +216,8 @@ def process_data(file_darkstore, file_cds):
                 cd_map[cod] = []
             if qtde > 0:
                 cd_map[cod].append({"filial": filial, "qtde": qtde})
+                all_cd_names.add(filial)
+    all_cd_names = sorted(list(all_cd_names))
                 
     # 2. Carregar Darkstore e Montar Base Final
     df_dark = pd.read_excel(file_darkstore)
@@ -271,7 +274,7 @@ def process_data(file_darkstore, file_cds):
             estoque_cd_total = sum(cd['qtde'] for cd in cds_associados)
             cds_nomes = ", ".join(list(set([cd['filial'] for cd in cds_associados])))
             
-            products.append({
+            row_dict = {
                 "Filial Origem": str(row[col_filial_dark]) if col_filial_dark else "Darkstore",
                 "Código Prod.": cod,
                 "Descrição": str(row[col_name]) if col_name else f"Produto {cod}",
@@ -284,7 +287,14 @@ def process_data(file_darkstore, file_cds):
                 "Dias Est. Original": float(row[col_dias_estoque]) if col_dias_estoque and pd.notna(row[col_dias_estoque]) else 0.0,
                 "Total em CDs": estoque_cd_total,
                 "CDs Parceiros": cds_nomes
-            })
+            }
+            
+            for cd_name in all_cd_names:
+                row_dict[cd_name] = 0
+            for cd in cds_associados:
+                row_dict[cd['filial']] += cd['qtde']
+                
+            products.append(row_dict)
             
     df_final = pd.DataFrame(products)
     df_final.to_pickle(CACHE_FILE)
@@ -601,44 +611,54 @@ def main():
         st.markdown('<br>', unsafe_allow_html=True)
         st.markdown('**Inventário Detalhado**')
     
+        base_columns = [
+            "Filial Origem",
+            "Código Prod.",
+            "Descrição",
+            "Curva",
+            "Status",
+            "Giro 30d (Un)",
+            "Estoque Físico",
+            "Estoque Trânsito",
+            "Dias Cobertura",
+            "Custo R$",
+            "Venda 30d (R$)"
+        ]
+        
+        excluded_cols = base_columns + ["Dias Est. Original", "Total em CDs", "CDs Parceiros", "Giro Diário", "perc_liquido", "perc_acumulado"]
+        cd_columns = sorted([col for col in df_filtered_cross.columns if col not in excluded_cols])
+        
+        column_order = base_columns + cd_columns + ["CDs Parceiros"]
+        
+        col_config = {
+            "Filial Origem": st.column_config.TextColumn("Filial", width="small"),
+            "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
+            "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
+            "Custo R$": st.column_config.NumberColumn("Estoque a Custo", format="R$ %.0f"),
+            "Venda 30d (R$)": st.column_config.NumberColumn("Receita 30d", format="R$ %.0f"),
+            "Giro 30d (Un)": st.column_config.NumberColumn("Giro 30d (Un)", format="%d un"),
+            "Estoque Físico": st.column_config.NumberColumn("Estoque Loja", format="%d"),
+            "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito", format="%d"),
+            "Dias Cobertura": st.column_config.ProgressColumn(
+                "Cobertura Calculada",
+                help="Dias de cobertura projetados",
+                format="%d d",
+                min_value=0,
+                max_value=120,
+            ),
+            "Status": st.column_config.TextColumn("Status de Saúde"),
+            "CDs Parceiros": st.column_config.TextColumn("Todos CDs Mapeados", width="medium")
+        }
+        
+        for cd_col in cd_columns:
+            col_config[cd_col] = st.column_config.NumberColumn(cd_col, format="%d")
+            
         st.dataframe(
             df_filtered_cross,
             use_container_width=True,
             hide_index=True,
-            column_order=[
-                "Filial Origem",
-                "Código Prod.",
-                "Descrição",
-                "Curva",
-                "Status",
-                "Giro 30d (Un)",
-                "Estoque Físico",
-                "Estoque Trânsito",
-                "Dias Cobertura",
-                "Custo R$",
-                "Venda 30d (R$)",
-                "Total em CDs",
-                "CDs Parceiros"
-            ],
-            column_config={
-                "Filial Origem": st.column_config.TextColumn("Filial", width="small"),
-                "Código Prod.": st.column_config.TextColumn("Cód.", width="small"),
-                "Descrição": st.column_config.TextColumn("Descrição do Item", width="large"),
-                "Custo R$": st.column_config.NumberColumn("Estoque a Custo", format="R$ %.0f"),
-                "Venda 30d (R$)": st.column_config.NumberColumn("Receita 30d", format="R$ %.0f"),
-                "Giro 30d (Un)": st.column_config.NumberColumn("Giro 30d (Un)", format="%d un"),
-                "Estoque Físico": st.column_config.NumberColumn("Estoque Loja", format="%d"),
-                "Estoque Trânsito": st.column_config.NumberColumn("C/ Trânsito", format="%d"),
-                "Dias Cobertura": st.column_config.ProgressColumn(
-                    "Cobertura Calculada",
-                    help="Dias de cobertura projetados",
-                    format="%d d",
-                    min_value=0,
-                    max_value=120,
-                ),
-                "Total em CDs": st.column_config.NumberColumn("Total CDs Parceiros", format="%d"),
-                "Status": st.column_config.TextColumn("Status de Saúde")
-            }
+            column_order=column_order,
+            column_config=col_config
         )
 
     with tab_vendas:
