@@ -152,9 +152,9 @@ def render_kpis(skus, cds_mapped, rupturas, pct_ruptura, avg_cobertura, saldo_cd
         </div>
         <div class="kpi-card">
             <div class="kpi-left">
-                <span class="kpi-title">ITENS EM RUPTURA IMINENTE</span>
+                <span class="kpi-title">ITENS EM RUPTURA</span>
                 <span class="kpi-value kpi-value-red">{rupturas} <span style="font-size:0.9rem">({int(pct_ruptura)}%)</span></span>
-                <span class="kpi-desc">Estoque c/ Trânsito zerado</span>
+                <span class="kpi-desc">Estoque físico zerado</span>
             </div>
             <div class="kpi-icon-box bg-red">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
@@ -247,8 +247,8 @@ def process_data(file_darkstore, file_cds):
             
         def classificar_curva(acumulado, faturamento):
             if faturamento <= 0: return "CURVA C"
-            if acumulado <= 0.60: return "CURVA A"
-            elif acumulado <= 0.80: return "CURVA B"
+            if acumulado <= 0.70: return "CURVA A"
+            elif acumulado <= 0.90: return "CURVA B"
             else: return "CURVA C"
             
         df_dark['Curva'] = df_dark.apply(lambda x: classificar_curva(x['perc_acumulado'], x[col_liquido]), axis=1)
@@ -421,7 +421,7 @@ def main():
             dias = row['Dias Cobertura']
             if estoque_fisico <= 0: return "Ruptura"
             if dias < 15: return "Crítico"
-            if dias <= 60: return "Saudável"
+            if dias <= 90: return "Saudável"
             return "Excesso"
         
         df['Status'] = df.apply(calculate_status, axis=1)
