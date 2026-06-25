@@ -4,8 +4,11 @@ import plotly.express as px
 import os
 import base64
 
-CACHE_FILE = "stokeflow_cache.pkl"
-VENDAS_CACHE_FILE = "stokeflow_vendas_cache.pkl"
+from sqlalchemy import create_engine, text
+import pytz
+
+DATABASE_URL = "postgresql://neondb_owner:npg_weAXbU3Jfsy9@ep-ancient-poetry-at7bej7p-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
+engine = create_engine(DATABASE_URL)
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -297,28 +300,49 @@ def process_data(file_darkstore, file_cds):
             products.append(row_dict)
             
     df_final = pd.DataFrame(products)
-    df_final.to_pickle(CACHE_FILE)
+    
+    # Salvar no NeonDB
+    try:
+        df_final.to_sql("estoque_cache", engine, if_exists="replace", index=False)
+        # Salvar data de atualização
+        df_meta = pd.DataFrame({"last_updated": [datetime.now(pytz.timezone('America/Sao_Paulo')).strftime("%d/%m/%Y às %H:%M")]})
+        df_meta.to_sql("meta_cache", engine, if_exists="replace", index=False)
+    except Exception as e:
+        st.error(f"Erro ao salvar no banco de dados: {e}")
+        
     return df_final
 
 from datetime import datetime
 
 def load_memory():
-    if os.path.exists(CACHE_FILE):
-        mtime = os.path.getmtime(CACHE_FILE)
-        st.session_state['last_updated'] = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y às %H:%M")
-        return pd.read_pickle(CACHE_FILE)
-    return None
+    try:
+        df = pd.read_sql_table("estoque_cache", engine)
+        try:
+            df_meta = pd.read_sql_table("meta_cache", engine)
+            st.session_state['last_updated'] = df_meta['last_updated'].iloc[0]
+        except:
+            st.session_state['last_updated'] = "Desconhecido"
+        return df
+    except ValueError:
+        return None
+    except Exception:
+        return None
 
 def load_vendas_memory():
-    if os.path.exists(VENDAS_CACHE_FILE):
-        return pd.read_pickle(VENDAS_CACHE_FILE)
-    return None
+    try:
+        return pd.read_sql_table("vendas_cache", engine)
+    except:
+        return None
 
 def clear_memory():
-    if os.path.exists(CACHE_FILE):
-        os.remove(CACHE_FILE)
-    if os.path.exists(VENDAS_CACHE_FILE):
-        os.remove(VENDAS_CACHE_FILE)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("DROP TABLE IF EXISTS estoque_cache;"))
+            conn.execute(text("DROP TABLE IF EXISTS vendas_cache;"))
+            conn.execute(text("DROP TABLE IF EXISTS meta_cache;"))
+    except:
+        pass
+        
     if 'df' in st.session_state:
         del st.session_state['df']
     if 'df_vendas' in st.session_state:
@@ -374,14 +398,21 @@ def main():
                     df = process_data(file_darkstore, file_cds)
                     if file_vendas:
                         df_v = process_vendas_data(file_vendas)
-                        df_v.to_pickle(VENDAS_CACHE_FILE)
+                        try:
+                            df_v.to_sql("vendas_cache", engine, if_exists="replace", index=False)
+                        except Exception as e:
+                            st.error(f"Erro ao salvar vendas no banco: {e}")
                     else:
                         df_v = pd.DataFrame()
                         
                     st.session_state['df'] = df
                     st.session_state['df_vendas'] = df_v
-                    from datetime import datetime
-                    st.session_state['last_updated'] = datetime.now().strftime("%d/%m/%Y às %H:%M")
+                    
+                    try:
+                        df_meta = pd.read_sql_table("meta_cache", engine)
+                        st.session_state['last_updated'] = df_meta['last_updated'].iloc[0]
+                    except:
+                        st.session_state['last_updated'] = datetime.now(pytz.timezone('America/Sao_Paulo')).strftime("%d/%m/%Y às %H:%M")
                     st.rerun()
             else:
                 st.error("Por favor, faça o upload das planilhas 1 e 2 (Estoque) para prosseguir.")
